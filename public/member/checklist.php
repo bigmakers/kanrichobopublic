@@ -12,6 +12,21 @@ $schedule = load_user_meta($user['email'], 'schedule');
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $date = sanitize_text($_POST['date'] ?? $date);
+    if (($_POST['action'] ?? '') === 'save_todo') {
+        for ($i=0;$i<10;$i++) {
+            $todo[$i]['text'] = sanitize_text($_POST['todo'][$i]['text'] ?? ($todo[$i]['text'] ?? ''));
+            $todo[$i]['done'] = !empty($_POST['todo'][$i]['done']);
+            if ($todo[$i]['done']) {
+                $todo[$i]['text'] = '';
+                $todo[$i]['done'] = false;
+            }
+        }
+        save_user_meta($user['email'], 'todo', $todo);
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'ok']);
+        exit;
+    }
+
     $selectedChecks = array_values(array_filter(array_map('sanitize_text', $_POST['checks'] ?? [])));
     $scheduleChecksPosted = array_values(array_filter(array_map('sanitize_text', $_POST['schedule_checks'] ?? [])));
     $entry = [
@@ -141,7 +156,8 @@ function changeDate(sel){
     </div>
     <div class="card col-side">
         <h3 class="card-title">TODO (10枠)</h3>
-        <p class="muted">完了チェック後は次回リロードでクリアされます。</p>
+        <p class="muted">入力すると自動保存します。完了チェック後は次回リロードでクリアされます。</p>
+        <div id="todo-status" class="muted" style="min-height:20px;"></div>
         <?php for($i=0;$i<10;$i++): ?>
             <div class="todo-row">
                 <input type="text" name="todo[<?= $i ?>][text]" value="<?= htmlspecialchars($todo[$i]['text'] ?? '') ?>" placeholder="TODO <?= $i+1 ?>">
@@ -173,4 +189,41 @@ function changeDate(sel){
         <?php endforeach; ?>
     </table>
 </div>
-</body></html>
+<script>
+const todoInputs = document.querySelectorAll('.col-side input[type="text"], .col-side input[type="checkbox"]');
+const todoStatus = document.getElementById('todo-status');
+let todoTimer = null;
+function debounceSaveTodo() {
+    clearTimeout(todoTimer);
+    todoTimer = setTimeout(saveTodo, 500);
+}
+async function saveTodo() {
+    const form = document.querySelector('form.two-col');
+    if (!form) return;
+    const fd = new FormData();
+    fd.append('csrf_token', form.querySelector('input[name="csrf_token"]').value);
+    fd.append('action', 'save_todo');
+    fd.append('date', form.querySelector('input[name="date"]').value);
+    document.querySelectorAll('.col-side .todo-row').forEach((row, idx) => {
+        const text = row.querySelector('input[type="text"]').value;
+        const done = row.querySelector('input[type="checkbox"]').checked;
+        fd.append(`todo[${idx}][text]`, text);
+        if (done) { fd.append(`todo[${idx}][done]`, '1'); }
+    });
+    try {
+        const res = await fetch(location.href, {method:'POST', body:fd});
+        if (res.ok) {
+            todoStatus.textContent = 'TODOを保存しました';
+            setTimeout(() => todoStatus.textContent = '', 1500);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+todoInputs.forEach(el => {
+    el.addEventListener('input', debounceSaveTodo);
+    el.addEventListener('change', debounceSaveTodo);
+});
+</script>
+</body>
+</html>

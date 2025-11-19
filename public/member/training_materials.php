@@ -112,6 +112,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             json_write_atomic('training/materials.json', $all);
             $message = '登録しました';
         }
+    } elseif ($action === 'update') {
+        $id = sanitize_text($_POST['id'] ?? '');
+        foreach ($all as &$m) {
+            if (($m['id'] ?? '') !== $id) { continue; }
+            if ($m['owner'] !== $user['email']) { $message = '編集権限がありません'; break; }
+            $title = sanitize_text($_POST['title'] ?? $m['title']);
+            $desc = sanitize_text($_POST['description'] ?? $m['description']);
+            $url = sanitize_text($_POST['url'] ?? $m['url']);
+            $is_public = !empty($_POST['is_public']);
+            $fileName = $m['file'] ?? '';
+            if (!empty($_POST['remove_file'])) {
+                $path = data_path('uploads/' . $fileName);
+                if ($fileName && file_exists($path)) { unlink($path); }
+                $fileName = '';
+            }
+            if (!empty($_FILES['file']['name'])) {
+                if ($_FILES['file']['size'] > 10 * 1024 * 1024) {
+                    $message = '10MBを超えるファイルはアップロードできません';
+                } else {
+                    [$ok, $info, $mime] = validated_upload($_FILES['file']);
+                    if ($ok) {
+                        $path = data_path('uploads/' . $fileName);
+                        if ($fileName && file_exists($path)) { unlink($path); }
+                        $fileName = $info;
+                    } else { $message = $info; }
+                }
+            }
+            if ($message === '') {
+                $m['title'] = $title;
+                $m['description'] = $desc;
+                $m['url'] = $url;
+                $m['file'] = $fileName;
+                $m['public'] = $is_public;
+                json_write_atomic('training/materials.json', $all);
+                $message = '更新しました';
+            }
+            break;
+        }
+        unset($m);
+    } elseif ($action === 'delete') {
+        $id = sanitize_text($_POST['id'] ?? '');
+        $kept = [];
+        foreach ($all as $m) {
+            if (($m['id'] ?? '') === $id) {
+                if ($m['owner'] !== $user['email']) { $kept[] = $m; $message = '削除権限がありません'; continue; }
+                if (!empty($m['file'])) {
+                    $path = data_path('uploads/' . $m['file']);
+                    if (file_exists($path)) { unlink($path); }
+                }
+                @unlink(data_path('comments/' . $id . '.json'));
+                @unlink(data_path('comments/' . $id . '_ratings.json'));
+                unset($memos[$id]);
+                continue;
+            }
+            $kept[] = $m;
+        }
+        $all = $kept;
+        save_user_meta($user['email'], 'training_memos', $memos);
+        json_write_atomic('training/materials.json', $all);
+        if ($message === '') { $message = '削除しました'; }
     } elseif ($action === 'complete') {
         $id = sanitize_text($_POST['id'] ?? '');
         $history = load_user_meta($user['email'], 'training_history');
@@ -174,7 +234,7 @@ $history = array_reverse($history);
         <h2>今日は1本だけ学ぶ</h2>
         <span class="badge">行動心理: 選択を減らす</span>
     </div>
-    <p class="subtext">登録フォームを右にまとめました。左で気になる教材を選び、右で「受講」を押すだけの導線にしています。</p>
+    <p class="subtext">手前の教材から順にトライし、完了ボタンで達成感を積み上げるシンプル導線にしています。</p>
 </div>
 <div class="training-layout">
     <div>
@@ -184,7 +244,7 @@ $history = array_reverse($history);
                 <button type="submit" class="secondary">検索</button>
             </form>
         </div>
-        <?php foreach ($list as $m): list($ownerName, $ownerPharmacy) = $ownerInfo($m['owner']); ?>
+        <?php foreach ($list as $m): list($ownerName, $ownerPharmacy) = $ownerInfo($m['owner']); $isOwner = $m['owner'] === $user['email']; ?>
         <div class="card">
             <div class="section-title">
                 <h3><?= htmlspecialchars($m['title']) ?></h3>
@@ -219,6 +279,32 @@ $history = array_reverse($history);
                 <label>コメント<textarea name="comment" rows="2"></textarea></label>
                 <button type="submit" class="secondary">コメント</button>
             </form>
+            <?php if ($isOwner): ?>
+                <div class="notice" style="margin-top:8px;">自分のアップロード：内容や公開設定、ファイルを更新できます。</div>
+                <form method="post" enctype="multipart/form-data" class="memo-area" style="margin-top:8px;">
+                    <?= csrf_field(); ?>
+                    <input type="hidden" name="action" value="update">
+                    <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
+                    <label>タイトル<input type="text" name="title" value="<?= htmlspecialchars($m['title']) ?>" required></label>
+                    <label>説明<textarea name="description" rows="2"><?= htmlspecialchars($m['description']) ?></textarea></label>
+                    <label>URL<input type="url" name="url" value="<?= htmlspecialchars($m['url']) ?>"></label>
+                    <?php if ($m['file']): ?>
+                        <p class="muted">現在のファイル: <?= htmlspecialchars($m['file']) ?></p>
+                        <label><input type="checkbox" name="remove_file" value="1">添付を削除する</label>
+                    <?php endif; ?>
+                    <label>ファイル差し替え<input type="file" name="file"></label>
+                    <label><input type="checkbox" name="is_public" value="1" <?= $m['public'] ? 'checked' : '' ?>>公開する</label>
+                    <div class="actions" style="justify-content:flex-start;gap:8px;">
+                        <button type="submit">更新する</button>
+                    </div>
+                </form>
+                <form method="post" onsubmit="return confirm('削除しますか？');" style="display:inline-block;margin-top:6px;">
+                    <?= csrf_field(); ?>
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
+                    <button type="submit" class="danger">削除</button>
+                </form>
+            <?php endif; ?>
             <form method="post" class="memo-area" style="margin-top:10px;">
                 <?= csrf_field(); ?>
                 <input type="hidden" name="action" value="memo">
