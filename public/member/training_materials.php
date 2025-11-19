@@ -199,6 +199,12 @@ $list = array_filter($all, function($m) use ($user, $q) {
 usort($list, fn($a,$b) => strcmp($b['created'] ?? '', $a['created'] ?? ''));
 $history = load_user_meta($user['email'], 'training_history');
 $history = array_reverse($history);
+$titleIndex = [];
+foreach ($all as $material) {
+    if (!empty($material['id'])) {
+        $titleIndex[$material['id']] = $material['title'] ?? $material['id'];
+    }
+}
 ?>
 <!doctype html>
 <html lang="ja">
@@ -337,8 +343,8 @@ $history = array_reverse($history);
         <div class="card">
             <h3>受講済み</h3>
             <ul>
-                <?php foreach ($history as $h): ?>
-                    <li><?= htmlspecialchars($h['date']) ?> - <?= htmlspecialchars($h['id']) ?></li>
+                <?php foreach ($history as $h): $title = $titleIndex[$h['id']] ?? $h['id']; ?>
+                    <li><?= htmlspecialchars($h['date']) ?> - <?= htmlspecialchars($title) ?></li>
                 <?php endforeach; ?>
             </ul>
         </div>
