@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     save_user_meta($user['email'], 'rx', $rx);
 }
 $entries = $rx[$month]['entries'] ?? [['date'=>date('Y-m-d'),'count'=>0]];
+$total = $rx[$month]['total'] ?? array_sum(array_column($entries, 'count'));
 ?>
 <!doctype html>
 <html lang="ja">
@@ -29,7 +30,13 @@ $entries = $rx[$month]['entries'] ?? [['date'=>date('Y-m-d'),'count'=>0]];
 <?= member_nav(); ?>
 <form method="post" class="card">
     <?= csrf_field(); ?>
-    <label>月<input type="month" name="month" value="<?= htmlspecialchars($month) ?>" onchange="this.form.submit()"></label>
+    <div class="row-grid" style="align-items:flex-end;">
+        <label>月<input type="month" name="month" value="<?= htmlspecialchars($month) ?>" onchange="this.form.submit()"></label>
+        <div class="stat">
+            <div class="muted">合計</div>
+            <strong style="font-size:20px;"><?= htmlspecialchars($total) ?>枚</strong>
+        </div>
+    </div>
     <table class="table">
         <tr><th>日付</th><th>枚数</th></tr>
         <?php foreach ($entries as $i=>$e): ?>
@@ -39,6 +46,17 @@ $entries = $rx[$month]['entries'] ?? [['date'=>date('Y-m-d'),'count'=>0]];
         </tr>
         <?php endforeach; ?>
     </table>
-    <button type="submit">保存</button>
+    <div class="actions">
+        <button type="button" class="secondary" onclick="addRow()">行を追加</button>
+        <button type="submit">保存</button>
+    </div>
 </form>
+<script>
+function addRow(){
+    const table=document.querySelector('table');
+    const row=document.createElement('tr');
+    row.innerHTML='<td><input type="date" name="date[]" value="<?= htmlspecialchars($month) ?>-01"></td><td><input type="number" name="count[]" value="0"></td>';
+    table.appendChild(row);
+}
+</script>
 </body></html>

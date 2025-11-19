@@ -59,4 +59,54 @@ function delete_user_records($email) {
 
     delete_user($email);
 }
+
+function migrate_user_email($oldEmail, $newEmail) {
+    $oldKey = user_key($oldEmail);
+    $newKey = user_key($newEmail);
+    foreach (glob(data_path('user_' . $oldKey . '_*.json')) as $f) {
+        $base = basename($f);
+        $newBase = str_replace('user_' . $oldKey . '_', 'user_' . $newKey . '_', $base);
+        rename($f, data_path($newBase));
+    }
+
+    $materials = read_json('training/materials.json', []);
+    $changed = false;
+    foreach ($materials as &$m) {
+        if (($m['owner'] ?? '') === $oldEmail) {
+            $m['owner'] = $newEmail;
+            $changed = true;
+        }
+    }
+    if ($changed) {
+        json_write_atomic('training/materials.json', $materials);
+    }
+
+    foreach (glob(data_path('comments/*.json')) as $commentFile) {
+        $comments = read_json('comments/' . basename($commentFile), []);
+        $updated = false;
+        foreach ($comments as &$c) {
+            if (($c['email'] ?? '') === $oldEmail) {
+                $c['email'] = $newEmail;
+                $updated = true;
+            }
+        }
+        if ($updated) {
+            json_write_atomic('comments/' . basename($commentFile), $comments);
+        }
+    }
+
+    foreach (glob(data_path('comments/*_ratings.json')) as $ratingFile) {
+        $ratings = read_json('comments/' . basename($ratingFile), []);
+        $updated = false;
+        foreach ($ratings as &$r) {
+            if (($r['user'] ?? '') === $oldEmail) {
+                $r['user'] = $newEmail;
+                $updated = true;
+            }
+        }
+        if ($updated) {
+            json_write_atomic('comments/' . basename($ratingFile), $ratings);
+        }
+    }
+}
 ?>

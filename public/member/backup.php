@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($iterator as $file) {
         if (strpos($file->getFilename(), $prefix) !== 0) continue;
         if (strpos($file->getPathname(), 'uploads') !== false || strpos($file->getPathname(), 'training') !== false) continue;
+        if (strpos($file->getFilename(), 'todo') !== false) continue;
         $local = substr($file->getPathname(), strlen($dir)+1);
         $zip->addFile($file->getPathname(), $local);
     }

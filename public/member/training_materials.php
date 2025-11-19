@@ -47,7 +47,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         save_user_meta($user['email'], 'training_history', $history);
         $checklists = load_user_meta($user['email'], 'checklists');
         $today = date('Y-m-d');
-        $checklists[$today]['training'] = trim(($checklists[$today]['training'] ?? '') . "\n受講: " . $id);
+        $title = '';
+        foreach ($all as $m) { if (($m['id'] ?? '') === $id) { $title = $m['title']; break; } }
+        $label = $title ? $title . ' (' . $id . ')' : $id;
+        $checklists[$today]['training'] = trim(($checklists[$today]['training'] ?? '') . "\n受講: " . $label);
         save_user_meta($user['email'], 'checklists', $checklists);
         $message = '受講を記録しました';
     } elseif ($action === 'comment') {

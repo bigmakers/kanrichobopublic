@@ -43,3 +43,6 @@ button.danger{background:#e85a5a;border-color:#c84343;}button.danger:hover{backg
 .hero-actions a, .hero-actions button{display:inline-flex;align-items:center;gap:6px;text-decoration:none;}
 .subtext{color:#4b5563;font-size:14px;margin-top:4px;}
 .card ul{padding-left:18px;margin:8px 0 0;}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+.checks-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:8px 0;}
