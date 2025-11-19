@@ -48,22 +48,27 @@ function changeDate(sel){
 <?= member_nav(); ?>
 <div class="notice">※各県地方ルールによる記載内容は備考に記録してください</div>
 <?php if ($message): ?><div class="alert"><?= htmlspecialchars($message) ?></div><?php endif; ?>
-<form method="post" class="card">
+<form method="post" class="two-col">
     <?= csrf_field(); ?>
-    <label>日付<input type="date" name="date" value="<?= htmlspecialchars($date) ?>" onchange="changeDate(this)"></label>
-    <label>チェック項目<textarea name="items[text]" rows="4"><?= htmlspecialchars($entry['items']['text'] ?? '') ?></textarea></label>
-    <label>医薬品廃棄<textarea name="waste" rows="2"><?= htmlspecialchars($entry['waste']) ?></textarea></label>
-    <label>研修記録<textarea name="training" rows="2"><?= htmlspecialchars($entry['training']) ?></textarea></label>
-    <label>備考<textarea name="notes" rows="3"><?= htmlspecialchars($entry['notes']) ?></textarea></label>
-    <label>処方箋枚数<input type="number" name="rx" value="<?= htmlspecialchars($entry['rx']) ?>"></label>
-    <label><input type="checkbox" name="participation" value="1" <?= !empty($entry['participation'])?'checked':''; ?>>MYスケジュール参加</label>
-    <h3>TODO (10枠)</h3>
-    <?php for($i=0;$i<10;$i++): ?>
-        <div>
-            <input type="text" name="todo[<?= $i ?>][text]" value="<?= htmlspecialchars($todo[$i]['text'] ?? '') ?>" placeholder="TODO <?= $i+1 ?>">
-            <label><input type="checkbox" name="todo[<?= $i ?>][done]" value="1">完了</label>
-        </div>
-    <?php endfor; ?>
-    <button type="submit">保存</button>
+    <div class="card col-main">
+        <label>日付<input type="date" name="date" value="<?= htmlspecialchars($date) ?>" onchange="changeDate(this)"></label>
+        <label>チェック項目<textarea name="items[text]" rows="4"><?= htmlspecialchars($entry['items']['text'] ?? '') ?></textarea></label>
+        <label>医薬品廃棄<textarea name="waste" rows="2"><?= htmlspecialchars($entry['waste']) ?></textarea></label>
+        <label>研修記録<textarea name="training" rows="2"><?= htmlspecialchars($entry['training']) ?></textarea></label>
+        <label>備考<textarea name="notes" rows="3"><?= htmlspecialchars($entry['notes']) ?></textarea></label>
+        <label>処方箋枚数<input type="number" name="rx" value="<?= htmlspecialchars($entry['rx']) ?>"></label>
+        <label><input type="checkbox" name="participation" value="1" <?= !empty($entry['participation'])?'checked':''; ?>>MYスケジュール参加</label>
+        <div class="actions"><button type="submit">保存</button></div>
+    </div>
+    <div class="card col-side">
+        <h3 class="card-title">TODO (10枠)</h3>
+        <p class="muted">完了チェック後は次回リロードでクリアされます。</p>
+        <?php for($i=0;$i<10;$i++): ?>
+            <div class="todo-row">
+                <input type="text" name="todo[<?= $i ?>][text]" value="<?= htmlspecialchars($todo[$i]['text'] ?? '') ?>" placeholder="TODO <?= $i+1 ?>">
+                <label class="inline"><input type="checkbox" name="todo[<?= $i ?>][done]" value="1">完了</label>
+            </div>
+        <?php endfor; ?>
+    </div>
 </form>
 </body></html>
