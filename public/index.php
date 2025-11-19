@@ -19,61 +19,105 @@ $aff = read_json('affiliates.json', ['header' => '']);
     <link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>">
 </head>
 <body class="mono">
-<?= $aff['header'] ?? '' ?>
-<h1>薬局管理帳簿ウェブシステム</h1>
-<?= member_nav(); ?>
-<div class="card">
-    <h2>アカウント情報</h2>
-    <p>氏名: <?= htmlspecialchars($user['name'] ?? '') ?></p>
-    <p>薬局: <?= htmlspecialchars($user['pharmacy'] ?? '') ?></p>
-    <p>許可期限: <?= htmlspecialchars($account['permit_expiry'] ?? '') ?></p>
-    <p>施設基準: <?= htmlspecialchars(implode(' / ', $account['facilities'] ?? [])) ?></p>
-    <p>公費枠: <?= htmlspecialchars(implode(' / ', $account['public_frames'] ?? [])) ?></p>
-    <p>保険薬局/機関コード: <?= htmlspecialchars($account['insurance_code'] ?? '') ?></p>
-    <p>PMDAメディナビ: <?= htmlspecialchars($account['pmda'] ?? '') ?></p>
-</div>
-<div class="card">
-    <h2>ショートカット</h2>
-    <p class="muted">よく使う機能にすぐアクセスできます。</p>
-    <ul>
-        <li><a href="<?= url_for('member/checklist.php'); ?>">日次チェックリスト</a></li>
-        <li><a href="<?= url_for('member/rx_counts.php'); ?>">月次処方箋枚数</a></li>
-        <li><a href="<?= url_for('member/my_schedule.php'); ?>">マイスケジュール編集</a></li>
-        <li><a href="<?= url_for('member/training_materials.php'); ?>">研修教材</a></li>
-        <li><a href="<?= url_for('member/print_month.php'); ?>">印刷ビュー</a></li>
-    </ul>
-</div>
-<div class="card">
-    <h2>TODO</h2>
-    <?php if (count($todoItems) === 0): ?>
-        <p class="muted">未登録です。<a href="<?= url_for('member/checklist.php'); ?>">チェックリスト</a>から追加できます。</p>
-    <?php else: ?>
-        <ul>
-            <?php foreach ($todoItems as $row): ?>
-                <li><?= htmlspecialchars($row['text'] ?? '') ?> <?= !empty($row['done']) ? '✅' : '' ?></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
-</div>
-<div class="card">
-    <h2>マイスケジュール予定</h2>
-    <?php if (empty($schedules['events'])): ?>
-        <p class="muted">予定が登録されていません。<a href="<?= url_for('member/my_schedule.php'); ?>">マイスケジュール</a>から追加できます。</p>
-    <?php else: ?>
-        <ul>
-            <?php foreach (($schedules['events'] ?? []) as $event): ?>
-                <li><?= htmlspecialchars($event['date'] ?? '') ?> - <?= htmlspecialchars($event['title'] ?? '') ?></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
-</div>
-<div class="card">
-    <h2>今月の処方箋枚数</h2>
-    <?php if (!empty($rx[date('Y-m')]['total'])): ?>
-        <p><?= htmlspecialchars($rx[date('Y-m')]['total']) ?></p>
-    <?php else: ?>
-        <p class="muted">未入力です。<a href="<?= url_for('member/rx_counts.php'); ?>">当月の枚数を登録</a>しましょう。</p>
-    <?php endif; ?>
+<div class="layout">
+    <?= $aff['header'] ?? '' ?>
+    <h1>薬局管理帳簿ウェブシステム</h1>
+    <?= member_nav(); ?>
+
+    <div class="card highlight">
+        <div class="section-title">
+            <h2>今日の最初の一手</h2>
+            <span class="badge">行動心理: 最重要を先に</span>
+        </div>
+        <p class="subtext">大事なものを先に置くと実行率が上がります。まずは今日のチェックを終わらせ、ついでに今月の数値も記録しましょう。</p>
+        <div class="hero-actions">
+            <a class="btn" href="<?= url_for('member/checklist.php'); ?>">日次チェックをつける</a>
+            <a class="btn secondary" href="<?= url_for('member/rx_counts.php'); ?>">今月の処方箋枚数を記録</a>
+            <a class="btn secondary" href="<?= url_for('member/my_schedule.php'); ?>">予定を1件入れる</a>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div>
+            <div class="card">
+                <div class="section-title">
+                    <h2>優先タスク</h2>
+                    <span class="badge">迷いを減らす</span>
+                </div>
+                <p class="subtext">よく使う機能を上にまとめました。迷わず押せる導線で「やるべきこと」から手を付けられます。</p>
+                <ul>
+                    <li><a href="<?= url_for('member/checklist.php'); ?>">日次チェックリスト</a> — 今日の漏れを防ぐ</li>
+                    <li><a href="<?= url_for('member/rx_counts.php'); ?>">月次処方箋枚数</a> — 5分で数字を残す</li>
+                    <li><a href="<?= url_for('member/my_schedule.php'); ?>">マイスケジュール編集</a> — 直近を1件入力</li>
+                    <li><a href="<?= url_for('member/training_materials.php'); ?>">研修教材</a> — 受講済みを記録</li>
+                    <li><a href="<?= url_for('member/print_month.php'); ?>">印刷ビュー</a> — A4で確認</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="section-title">
+                    <h2>アカウント概要</h2>
+                    <span class="badge">把握しやすく</span>
+                </div>
+                <div class="stat-list">
+                    <div class="stat">氏名: <?= htmlspecialchars($user['name'] ?? '') ?></div>
+                    <div class="stat">薬局: <?= htmlspecialchars($user['pharmacy'] ?? '') ?></div>
+                    <div class="stat">許可期限: <?= htmlspecialchars($account['permit_expiry'] ?? '') ?></div>
+                    <div class="stat">施設基準: <?= htmlspecialchars(implode(' / ', $account['facilities'] ?? [])) ?></div>
+                    <div class="stat">公費枠: <?= htmlspecialchars(implode(' / ', $account['public_frames'] ?? [])) ?></div>
+                    <div class="stat">保険薬局/機関コード: <?= htmlspecialchars($account['insurance_code'] ?? '') ?></div>
+                    <div class="stat">PMDAメディナビ: <?= htmlspecialchars($account['pmda'] ?? '') ?></div>
+                </div>
+                <p class="muted">詳細の更新は <a href="<?= url_for('member/account.php'); ?>">アカウント設定</a> から行えます。</p>
+            </div>
+        </div>
+
+        <div>
+            <div class="card">
+                <div class="section-title">
+                    <h2>TODOリスト</h2>
+                    <span class="badge">終わりを見せる</span>
+                </div>
+                <?php if (count($todoItems) === 0): ?>
+                    <p class="muted">未登録です。<a href="<?= url_for('member/checklist.php'); ?>">チェックリスト</a>から追加できます。</p>
+                <?php else: ?>
+                    <ul>
+                        <?php foreach ($todoItems as $row): ?>
+                            <li><?= htmlspecialchars($row['text'] ?? '') ?> <?= !empty($row['done']) ? '✅' : '' ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+
+            <div class="card">
+                <div class="section-title">
+                    <h2>マイスケジュール予定</h2>
+                    <span class="badge">先の見通し</span>
+                </div>
+                <?php if (empty($schedules['events'])): ?>
+                    <p class="muted">予定が登録されていません。<a href="<?= url_for('member/my_schedule.php'); ?>">マイスケジュール</a>から追加できます。</p>
+                <?php else: ?>
+                    <ul>
+                        <?php foreach (($schedules['events'] ?? []) as $event): ?>
+                            <li><?= htmlspecialchars($event['date'] ?? '') ?> - <?= htmlspecialchars($event['title'] ?? '') ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+
+            <div class="card">
+                <div class="section-title">
+                    <h2>今月の処方箋枚数</h2>
+                    <span class="badge">数字で振り返る</span>
+                </div>
+                <?php if (!empty($rx[date('Y-m')]['total'])): ?>
+                    <p class="helper">今月の登録枚数: <strong><?= htmlspecialchars($rx[date('Y-m')]['total']) ?></strong></p>
+                <?php else: ?>
+                    <p class="muted">未入力です。<a href="<?= url_for('member/rx_counts.php'); ?>">当月の枚数を登録</a>しましょう。</p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
 </div>
 </body>
 </html>
