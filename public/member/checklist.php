@@ -83,9 +83,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $message = '自動保存しました';
 }
 $entry = $checklists[$date] ?? ['items'=>[],'checks'=>[],'waste'=>'','training'=>'','notes'=>'','rx'=>'','participation'=>false];
-$checkItems = $account['check_items'] ?? [];
+$checkItems = array_values(array_filter($account['check_items'] ?? []));
 $dailyChecks = [];
-if (!empty($checkItems)) {
+if (!empty($entry['checks'])) {
+    foreach ($entry['checks'] as $saved) {
+        if (in_array($saved, $checkItems, true)) {
+            $dailyChecks[] = $saved;
+        }
+    }
+    $dailyChecks = array_values(array_unique($dailyChecks));
+}
+if (empty($dailyChecks) && !empty($checkItems)) {
     $keys = array_rand($checkItems, min(3, count($checkItems)));
     if (!is_array($keys)) { $keys = [$keys]; }
     foreach ($keys as $k) {
@@ -137,19 +145,19 @@ function changeDate(sel){
         <label>日付<input type="date" name="date" value="<?= htmlspecialchars($date) ?>" onchange="changeDate(this)"></label>
         <div class="field-group">
             <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>チェック項目（ランダム3件）</span>
-                <small class="muted">左寄せで並べ、脳が迷わず「はい」を選べる配置です</small>
+                <span>チェック項目</span>
+                <small class="muted">左寄せで、自然なチェック操作ができます</small>
             </div>
             <div class="checks-list">
                 <?php foreach ($dailyChecks as $item): ?>
-                    <label class="inline pill"><input type="checkbox" name="checks[]" value="<?= htmlspecialchars($item) ?>" <?= in_array($item, $entry['checks'] ?? []) ? 'checked' : '' ?>><?= htmlspecialchars($item) ?></label>
+                    <label class="check-option"><input type="checkbox" name="checks[]" value="<?= htmlspecialchars($item) ?>" <?= in_array($item, $entry['checks'] ?? []) ? 'checked' : '' ?>><span><?= htmlspecialchars($item) ?></span></label>
                 <?php endforeach; ?>
             </div>
             <?php if ($scheduleCheckOptions): ?>
-                <div class="section-title" style="margin-top:8px;">マイスケジュール参加チェック</div>
+                <div class="section-title" style="margin-top:8px;">スケジュール参加チェック</div>
                 <div class="checks-list">
                     <?php foreach ($scheduleCheckOptions as $opt): ?>
-                        <label class="inline pill"><input type="checkbox" name="schedule_checks[]" value="<?= htmlspecialchars($opt) ?>" <?= in_array($opt, $entry['checks'] ?? []) ? 'checked' : '' ?>><?= htmlspecialchars($opt) ?></label>
+                        <label class="check-option"><input type="checkbox" name="schedule_checks[]" value="<?= htmlspecialchars($opt) ?>" <?= in_array($opt, $entry['checks'] ?? []) ? 'checked' : '' ?>><span><?= htmlspecialchars($opt) ?></span></label>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
@@ -160,14 +168,6 @@ function changeDate(sel){
         <label>研修記録<textarea name="training" rows="2"><?= htmlspecialchars($entry['training']) ?></textarea></label>
         <label>備考<textarea name="notes" rows="3"><?= htmlspecialchars($entry['notes']) ?></textarea></label>
         <label>処方箋枚数<input type="number" name="rx" value="<?= htmlspecialchars($entry['rx']) ?>"></label>
-        <?php if ($todaySchedule): ?>
-            <div class="notice">本日のマイスケジュール</div>
-            <ul class="muted">
-                <?php foreach ($todaySchedule as $ev): ?>
-                    <li><?= htmlspecialchars($ev['title'] ?? '予定') ?> <?= htmlspecialchars($ev['detail'] ?? '') ?></li>
-                <?php endforeach; ?>
-            </ul>
-        <?php endif; ?>
         <div class="actions"><button type="submit">保存</button></div>
     </div>
     <div class="card col-side">
