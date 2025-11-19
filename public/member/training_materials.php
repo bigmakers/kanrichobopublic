@@ -7,6 +7,7 @@ csrf_check();
 $all = read_json('training/materials.json', []);
 $message = '';
 $memos = load_user_meta($user['email'], 'training_memos');
+$notifications = load_user_meta($user['email'], 'notifications');
 $usersIndex = [];
 foreach (users_all() as $u) {
     $usersIndex[$u['email']] = $u;
@@ -34,49 +35,6 @@ $normalizeComments = function(string $id, array $list) {
         json_write_atomic('comments/' . $id . '.json', $list);
     }
     return $list;
-};
-
-$buildTree = function(array $list) {
-    $byId = [];
-    foreach ($list as $c) {
-        $c['children'] = [];
-        $byId[$c['id']] = $c;
-    }
-    $roots = [];
-    foreach ($byId as $id => &$c) {
-        $parent = $c['parent'] ?? '';
-        if ($parent && isset($byId[$parent])) {
-            $byId[$parent]['children'][] = &$c;
-        } else {
-            $roots[] = &$c;
-        }
-    }
-    unset($c);
-    return $roots;
-};
-
-$renderComments = function(array $comments, string $materialId) use (&$renderComments) {
-    foreach ($comments as $c) {
-        ?>
-        <li class="comment-item">
-            <div class="comment-meta"><?= htmlspecialchars($c['user']) ?> (<?= htmlspecialchars($c['ip']) ?>) / <?= htmlspecialchars(substr($c['at'] ?? '', 0, 10)) ?></div>
-            <div class="comment-text"><?= nl2br(htmlspecialchars($c['text'])) ?></div>
-            <form method="post" class="comment-reply">
-                <?= csrf_field(); ?>
-                <input type="hidden" name="action" value="comment">
-                <input type="hidden" name="id" value="<?= htmlspecialchars($materialId) ?>">
-                <input type="hidden" name="parent" value="<?= htmlspecialchars($c['id']) ?>">
-                <label>返信<textarea name="comment" rows="2" placeholder="返信を入力"></textarea></label>
-                <button type="submit" class="secondary">返信する</button>
-            </form>
-            <?php if (!empty($c['children'])): ?>
-                <ul class="comment-children">
-                    <?php $renderComments($c['children'], $materialId); ?>
-                </ul>
-            <?php endif; ?>
-        </li>
-        <?php
-    }
 };
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -193,6 +151,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $commentList = read_json('comments/' . $id . '.json', []);
         $commentList[] = ['id'=>uniqid('c', true),'parent'=>$parent,'user'=>$user['name'],'email'=>$user['email'],'ip'=>$ip,'text'=>$text,'at'=>date('c')];
         json_write_atomic('comments/' . $id . '.json', $commentList);
+        foreach ($all as $m) {
+            if (($m['id'] ?? '') === $id) {
+                $ownerMail = $m['owner'] ?? '';
+                if ($ownerMail && $ownerMail !== $user['email']) {
+                    $ownerNotes = load_user_meta($ownerMail, 'notifications');
+                    $ownerNotes[] = [
+                        'type' => 'comment',
+                        'title' => $m['title'] ?? '教材',
+                        'from' => $user['name'],
+                        'material' => $id,
+                        'at' => date('c')
+                    ];
+                    save_user_meta($ownerMail, 'notifications', $ownerNotes);
+                }
+                break;
+            }
+        }
         $message = 'コメントしました';
     } elseif ($action === 'rate') {
         $id = sanitize_text($_POST['id'] ?? '');
@@ -209,6 +184,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $memos[$id] = $memoText;
         save_user_meta($user['email'], 'training_memos', $memos);
         $message = 'メモを保存しました';
+    } elseif ($action === 'clear_notifications') {
+        $notifications = [];
+        save_user_meta($user['email'], 'notifications', $notifications);
+        $message = 'お知らせをクリアしました';
     }
 }
 
@@ -229,107 +208,132 @@ $history = array_reverse($history);
 <h1>研修教材</h1>
 <?= member_nav(); ?>
 <?php if ($message): ?><div class="alert"><?= htmlspecialchars($message) ?></div><?php endif; ?>
+<?php if (!empty($notifications)): ?>
+    <div class="card highlight">
+        <div class="section-title">
+            <h2>お知らせ</h2>
+            <form method="post" style="margin:0;">
+                <?= csrf_field(); ?>
+                <input type="hidden" name="action" value="clear_notifications">
+                <button type="submit" class="secondary">既読にする</button>
+            </form>
+        </div>
+        <ul class="muted">
+            <?php foreach (array_reverse($notifications) as $note): ?>
+                <li><?= htmlspecialchars(substr($note['at'] ?? '',0,16)) ?>：<?= htmlspecialchars($note['title'] ?? '') ?> に <?= htmlspecialchars($note['from'] ?? '') ?> さんがコメントしました。</li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+<?php endif; ?>
 <div class="card highlight">
     <div class="section-title">
-        <h2>今日は1本だけ学ぶ</h2>
-        <span class="badge">行動心理: 選択を減らす</span>
+        <h2>閲覧→受講で記録に残す</h2>
+        <span class="badge">行動心理</span>
     </div>
-    <p class="subtext">手前の教材から順にトライし、完了ボタンで達成感を積み上げるシンプル導線にしています。</p>
+    <p class="subtext">2ちゃんねる掲示板風のタイムラインに並ぶ教材を上から順に読む→受講ボタンで記録、という直線的な導線にしています。</p>
 </div>
 <div class="training-layout">
     <div>
         <div class="card">
             <form method="get" class="row-grid" style="align-items:flex-end;">
-                <label>タイトル検索<input type="text" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="学びたいテーマで検索"></label>
+                <label>スレッド検索<input type="text" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="キーワードで検索"></label>
                 <button type="submit" class="secondary">検索</button>
             </form>
+            <p class="notice">閲覧して内容を理解 → すぐ隣の受講ボタンで記録、というワンステップ導線にしています。</p>
         </div>
-        <?php foreach ($list as $m): list($ownerName, $ownerPharmacy) = $ownerInfo($m['owner']); $isOwner = $m['owner'] === $user['email']; ?>
-        <div class="card">
-            <div class="section-title">
-                <h3><?= htmlspecialchars($m['title']) ?></h3>
-                <span class="badge"><?= htmlspecialchars($m['public'] ? '公開' : '非公開') ?></span>
+        <?php $threadNo = 1; foreach ($list as $m): list($ownerName, $ownerPharmacy) = $ownerInfo($m['owner']); $isOwner = $m['owner'] === $user['email']; $commentList = $normalizeComments($m['id'], read_json('comments/' . $m['id'] . '.json', [])); ?>
+        <div class="bbs-thread">
+            <div class="bbs-head">
+                <div class="bbs-title">【<?= htmlspecialchars($ownerPharmacy ?: '無所属') ?>】<?= htmlspecialchars($m['title']) ?></div>
+                <div class="bbs-meta">1 ：<?= htmlspecialchars($ownerName) ?>＠<?= htmlspecialchars($ownerPharmacy ?: '薬局') ?> 投稿日：<?= htmlspecialchars(substr($m['created'] ?? '',0,16)) ?> ID:<?= htmlspecialchars(substr($m['id'], -6)) ?> <?= $m['public'] ? '◆公開中' : '◆非公開' ?></div>
             </div>
-            <div class="owner-info">薬局: <?= htmlspecialchars($ownerPharmacy ?: '未設定') ?> / 投稿者: <?= htmlspecialchars($ownerName) ?></div>
-            <p><?= nl2br(htmlspecialchars($m['description'])) ?></p>
-            <?php if ($m['url']): ?><p>URL: <a href="<?= htmlspecialchars($m['url']) ?>" target="_blank">リンク</a></p><?php endif; ?>
-            <?php if ($m['file']): ?><p><a href="<?= url_for('attachments.php'); ?>?f=<?= urlencode($m['file']) ?>">添付をダウンロード</a></p><?php endif; ?>
-            <div class="grid-2" style="margin-top:10px;gap:10px;align-items:start;">
-                <form method="post">
+            <div class="bbs-body">
+                <?= nl2br(htmlspecialchars($m['description'] ?: '（説明なし）')) ?>
+                <?php if ($m['url']): ?><div>URL: <a href="<?= htmlspecialchars($m['url']) ?>" target="_blank" rel="noopener">リンク</a></div><?php endif; ?>
+                <?php if ($m['file']): ?><div><a href="<?= url_for('attachments.php'); ?>?f=<?= urlencode($m['file']) ?>">添付ファイルを閲覧</a></div><?php endif; ?>
+            </div>
+            <div class="bbs-actions">
+                <form method="post" class="inline">
                     <?= csrf_field(); ?>
                     <input type="hidden" name="action" value="complete">
                     <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
-                    <button type="submit">受講</button>
+                    <button type="submit">👀→受講</button>
                 </form>
-                <form method="post">
+                <form method="post" class="inline">
                     <?= csrf_field(); ?>
                     <input type="hidden" name="action" value="rate">
                     <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
-                    <label>評価<select name="score">
-                        <option value="">選択</option>
-                        <?php for($i=1;$i<=5;$i++): ?><option value="<?= $i ?>"><?= str_repeat('★',$i) ?></option><?php endfor; ?>
+                    <label class="inline">★評価<select name="score">
+                        <option value="">-</option>
+                        <?php for($i=1;$i<=5;$i++): ?><option value="<?= $i ?>"><?= $i ?></option><?php endfor; ?>
                     </select></label>
-                    <button type="submit">送信</button>
+                    <button type="submit" class="secondary">投稿</button>
                 </form>
             </div>
-            <form method="post" style="margin-top:10px;">
-                <?= csrf_field(); ?>
-                <input type="hidden" name="action" value="comment">
-                <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
-                <label>コメント<textarea name="comment" rows="2"></textarea></label>
-                <button type="submit" class="secondary">コメント</button>
-            </form>
             <?php if ($isOwner): ?>
-                <div class="notice" style="margin-top:8px;">自分のアップロード：内容や公開設定、ファイルを更新できます。</div>
-                <form method="post" enctype="multipart/form-data" class="memo-area" style="margin-top:8px;">
-                    <?= csrf_field(); ?>
-                    <input type="hidden" name="action" value="update">
-                    <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
-                    <label>タイトル<input type="text" name="title" value="<?= htmlspecialchars($m['title']) ?>" required></label>
-                    <label>説明<textarea name="description" rows="2"><?= htmlspecialchars($m['description']) ?></textarea></label>
-                    <label>URL<input type="url" name="url" value="<?= htmlspecialchars($m['url']) ?>"></label>
-                    <?php if ($m['file']): ?>
-                        <p class="muted">現在のファイル: <?= htmlspecialchars($m['file']) ?></p>
-                        <label><input type="checkbox" name="remove_file" value="1">添付を削除する</label>
-                    <?php endif; ?>
-                    <label>ファイル差し替え<input type="file" name="file"></label>
-                    <label><input type="checkbox" name="is_public" value="1" <?= $m['public'] ? 'checked' : '' ?>>公開する</label>
-                    <div class="actions" style="justify-content:flex-start;gap:8px;">
-                        <button type="submit">更新する</button>
-                    </div>
-                </form>
-                <form method="post" onsubmit="return confirm('削除しますか？');" style="display:inline-block;margin-top:6px;">
-                    <?= csrf_field(); ?>
-                    <input type="hidden" name="action" value="delete">
-                    <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
-                    <button type="submit" class="danger">削除</button>
-                </form>
+                <details class="bbs-owner">
+                    <summary>◆オーナー編集</summary>
+                    <form method="post" enctype="multipart/form-data" class="memo-area">
+                        <?= csrf_field(); ?>
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
+                        <label>タイトル<input type="text" name="title" value="<?= htmlspecialchars($m['title']) ?>" required></label>
+                        <label>説明<textarea name="description" rows="2"><?= htmlspecialchars($m['description']) ?></textarea></label>
+                        <label>URL<input type="url" name="url" value="<?= htmlspecialchars($m['url']) ?>"></label>
+                        <?php if ($m['file']): ?>
+                            <p class="muted">添付: <?= htmlspecialchars($m['file']) ?></p>
+                            <label><input type="checkbox" name="remove_file" value="1">添付を削除</label>
+                        <?php endif; ?>
+                        <label>ファイル差し替え<input type="file" name="file"></label>
+                        <label><input type="checkbox" name="is_public" value="1" <?= $m['public'] ? 'checked' : '' ?>>公開する</label>
+                        <div class="inline" style="gap:8px; flex-wrap:wrap;">
+                            <button type="submit">更新</button>
+                        </div>
+                    </form>
+                    <form method="post" onsubmit="return confirm('削除しますか？');" style="margin-top:10px;">
+                        <?= csrf_field(); ?>
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
+                        <button type="submit" class="danger">削除</button>
+                    </form>
+                </details>
             <?php endif; ?>
-            <form method="post" class="memo-area" style="margin-top:10px;">
-                <?= csrf_field(); ?>
-                <input type="hidden" name="action" value="memo">
-                <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
-                <label>非公開メモ<textarea name="memo" rows="2" placeholder="自分だけの学びメモを残せます。"><?= htmlspecialchars($memos[$m['id']] ?? '') ?></textarea></label>
-                <button type="submit" class="secondary">メモを保存</button>
-            </form>
-            <?php 
-                $commentList = $normalizeComments($m['id'], read_json('comments/' . $m['id'] . '.json', []));
-                $commentTree = $buildTree($commentList);
-            ?>
-            <div class="notice" style="margin-top:8px;">コメント</div>
-            <form method="post" class="comment-reply" style="margin-bottom:8px;">
+            <form method="post" class="bbs-comment-form">
                 <?= csrf_field(); ?>
                 <input type="hidden" name="action" value="comment">
                 <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
                 <input type="hidden" name="parent" value="">
-                <label>コメントを追加<textarea name="comment" rows="2"></textarea></label>
-                <button type="submit" class="secondary">投稿</button>
+                <textarea name="comment" rows="2" placeholder="名無しの薬局さん：コメントをどうぞ"></textarea>
+                <div class="inline" style="justify-content:space-between;width:100%;">
+                    <button type="submit" class="secondary">書き込む</button>
+                    <small class="muted">IPは自動で添付されます</small>
+                </div>
             </form>
-            <ul class="comment-list">
-                <?php $renderComments($commentTree, $m['id']); ?>
+            <ul class="bbs-posts">
+                <?php $i = 2; foreach ($commentList as $c): ?>
+                    <li class="bbs-post">
+                        <div class="bbs-meta"><?= $i ?> ：<?= htmlspecialchars($c['user']) ?> (<?= htmlspecialchars($c['ip']) ?>) 投稿日：<?= htmlspecialchars(substr($c['at'] ?? '',0,16)) ?> ID:<?= htmlspecialchars(substr($c['id'], -5)) ?> <?= $c['parent'] ? '>>'.$c['parent'] : '' ?></div>
+                        <div class="bbs-body"><?= nl2br(htmlspecialchars($c['text'])) ?></div>
+                        <form method="post" class="comment-reply-inline">
+                            <?= csrf_field(); ?>
+                            <input type="hidden" name="action" value="comment">
+                            <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
+                            <input type="hidden" name="parent" value="<?= htmlspecialchars($c['id']) ?>">
+                            <textarea name="comment" rows="1" placeholder="返信"></textarea>
+                            <button type="submit" class="secondary">レス</button>
+                        </form>
+                    </li>
+                <?php $i++; endforeach; ?>
             </ul>
+            <form method="post" class="memo-area">
+                <?= csrf_field(); ?>
+                <input type="hidden" name="action" value="memo">
+                <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
+                <label>非公開メモ<textarea name="memo" rows="2" placeholder="公開には見えないメモを残せます。"><?= htmlspecialchars($memos[$m['id']] ?? '') ?></textarea></label>
+                <button type="submit" class="secondary">保存</button>
+            </form>
         </div>
-        <?php endforeach; ?>
+        <?php $threadNo++; endforeach; ?>
         <div class="card">
             <h3>受講済み</h3>
             <ul>

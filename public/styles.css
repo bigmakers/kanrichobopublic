@@ -317,3 +317,24 @@ button.danger:hover {
 .row-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .event-row .row-grid { display: grid; grid-template-columns: 160px 1fr 140px; gap: 16px; align-items: end; }
 @media (max-width: 720px){ .event-row .row-grid { grid-template-columns: 1fr; } }
+.bbs-thread {
+  background: #fff;
+  border-radius: var(--radius);
+  border: 1px solid #cbd5e1;
+  margin-bottom: 18px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.bbs-head { border-bottom: 1px dashed var(--border); padding-bottom: 8px; margin-bottom: 12px; }
+.bbs-title { font-weight: 700; font-size: 1rem; }
+.bbs-meta { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+.bbs-body { font-size: 0.92rem; line-height: 1.6; margin-bottom: 12px; }
+.bbs-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.bbs-owner summary { cursor: pointer; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+.bbs-comment-form textarea, .comment-reply-inline textarea { width: 100%; }
+.bbs-posts { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--border); }
+.bbs-post { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.bbs-post:last-child { border-bottom: none; }
+.bbs-post .bbs-body { margin: 6px 0; }
+.comment-reply-inline { display: flex; gap: 8px; align-items: center; }
+.comment-reply-inline textarea { flex: 1; }
