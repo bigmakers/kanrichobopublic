@@ -18,7 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'narcotics_number','narcotics_expiry','insurance_pharmacy_code','institution_code','pmda_certificate','pmda_email','pharmacy_name'
     ];
     foreach ($fields as $f) {
-        $account[$f] = sanitize_text($_POST[$f] ?? ($account[$f] ?? ''));
+        $sourceKey = $f === 'pharmacy_name' ? 'pharmacy' : $f;
+        $account[$f] = sanitize_text($_POST[$sourceKey] ?? ($account[$f] ?? ''));
     }
     $account['facilities'] = array_filter(array_map('sanitize_text', explode(',', $_POST['facilities'] ?? '')));
     $account['public_frames'] = array_filter(array_map('sanitize_text', explode(',', $_POST['public_frames'] ?? '')));
@@ -34,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $newEmail = strtolower(sanitize_text($_POST['email'] ?? $user['email']));
     $newName = sanitize_text($_POST['name'] ?? $user['name']);
     $newPharmacy = sanitize_text($_POST['pharmacy'] ?? ($account['pharmacy_name'] ?? $user['pharmacy'] ?? ''));
+    $account['pharmacy_name'] = $newPharmacy;
     $users = users_all();
     $exists = auth_user_by_email($newEmail);
     if ($exists && $exists['email'] !== $user['email']) {
