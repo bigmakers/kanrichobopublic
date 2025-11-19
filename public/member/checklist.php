@@ -12,9 +12,11 @@ $schedule = load_user_meta($user['email'], 'schedule');
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $date = sanitize_text($_POST['date'] ?? $date);
+    $selectedChecks = array_values(array_filter(array_map('sanitize_text', $_POST['checks'] ?? [])));
+    $scheduleChecksPosted = array_values(array_filter(array_map('sanitize_text', $_POST['schedule_checks'] ?? [])));
     $entry = [
         'items' => sanitize_array($_POST['items'] ?? []),
-        'checks' => array_values(array_filter(array_map('sanitize_text', $_POST['checks'] ?? []))),
+        'checks' => array_values(array_unique(array_merge($selectedChecks, $scheduleChecksPosted))),
         'waste' => sanitize_text($_POST['waste'] ?? ''),
         'training' => sanitize_text($_POST['training'] ?? ''),
         'notes' => sanitize_text($_POST['notes'] ?? ''),
@@ -72,6 +74,14 @@ foreach (($schedule['events'] ?? []) as $ev) {
         $todaySchedule[] = $ev;
     }
 }
+$scheduleCheckOptions = [];
+foreach ($todaySchedule as $ev) {
+    $label = 'スケジュール参加: ' . trim($ev['title'] ?? '予定');
+    if (!empty($ev['detail'])) {
+        $label .= ' / ' . $ev['detail'];
+    }
+    $scheduleCheckOptions[] = $label;
+}
 ?>
 <!doctype html>
 <html lang="ja">
@@ -103,6 +113,14 @@ function changeDate(sel){
                     <label class="inline pill"><input type="checkbox" name="checks[]" value="<?= htmlspecialchars($item) ?>" <?= in_array($item, $entry['checks'] ?? []) ? 'checked' : '' ?>><?= htmlspecialchars($item) ?></label>
                 <?php endforeach; ?>
             </div>
+            <?php if ($scheduleCheckOptions): ?>
+                <div class="section-title" style="margin-top:8px;">マイスケジュール参加チェック</div>
+                <div class="checks-list">
+                    <?php foreach ($scheduleCheckOptions as $opt): ?>
+                        <label class="inline pill"><input type="checkbox" name="schedule_checks[]" value="<?= htmlspecialchars($opt) ?>" <?= in_array($opt, $entry['checks'] ?? []) ? 'checked' : '' ?>><?= htmlspecialchars($opt) ?></label>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
             <label>自由記入<textarea name="items[text]" rows="3" placeholder="チェックに補足を残すときに使えます。集中が切れない短文が推奨です。 ">
 <?= htmlspecialchars($entry['items']['text'] ?? '') ?></textarea></label>
         </div>

@@ -23,6 +23,62 @@ $ownerInfo = function ($email) use (&$accountCache, $usersIndex) {
     return [$name, $pharmacy];
 };
 
+$normalizeComments = function(string $id, array $list) {
+    $changed = false;
+    foreach ($list as &$c) {
+        if (empty($c['id'])) { $c['id'] = uniqid('c', true); $changed = true; }
+        if (!isset($c['parent'])) { $c['parent'] = ''; $changed = true; }
+    }
+    unset($c);
+    if ($changed) {
+        json_write_atomic('comments/' . $id . '.json', $list);
+    }
+    return $list;
+};
+
+$buildTree = function(array $list) {
+    $byId = [];
+    foreach ($list as $c) {
+        $c['children'] = [];
+        $byId[$c['id']] = $c;
+    }
+    $roots = [];
+    foreach ($byId as $id => &$c) {
+        $parent = $c['parent'] ?? '';
+        if ($parent && isset($byId[$parent])) {
+            $byId[$parent]['children'][] = &$c;
+        } else {
+            $roots[] = &$c;
+        }
+    }
+    unset($c);
+    return $roots;
+};
+
+$renderComments = function(array $comments, string $materialId) use (&$renderComments) {
+    foreach ($comments as $c) {
+        ?>
+        <li class="comment-item">
+            <div class="comment-meta"><?= htmlspecialchars($c['user']) ?> (<?= htmlspecialchars($c['ip']) ?>) / <?= htmlspecialchars(substr($c['at'] ?? '', 0, 10)) ?></div>
+            <div class="comment-text"><?= nl2br(htmlspecialchars($c['text'])) ?></div>
+            <form method="post" class="comment-reply">
+                <?= csrf_field(); ?>
+                <input type="hidden" name="action" value="comment">
+                <input type="hidden" name="id" value="<?= htmlspecialchars($materialId) ?>">
+                <input type="hidden" name="parent" value="<?= htmlspecialchars($c['id']) ?>">
+                <label>返信<textarea name="comment" rows="2" placeholder="返信を入力"></textarea></label>
+                <button type="submit" class="secondary">返信する</button>
+            </form>
+            <?php if (!empty($c['children'])): ?>
+                <ul class="comment-children">
+                    <?php $renderComments($c['children'], $materialId); ?>
+                </ul>
+            <?php endif; ?>
+        </li>
+        <?php
+    }
+};
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? 'add';
     if ($action === 'add') {
@@ -72,9 +128,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'comment') {
         $id = sanitize_text($_POST['id'] ?? '');
         $text = sanitize_text($_POST['comment'] ?? '');
+        $parent = sanitize_text($_POST['parent'] ?? '');
         $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
         $commentList = read_json('comments/' . $id . '.json', []);
-        $commentList[] = ['user'=>$user['name'],'email'=>$user['email'],'ip'=>$ip,'text'=>$text,'at'=>date('c')];
+        $commentList[] = ['id'=>uniqid('c', true),'parent'=>$parent,'user'=>$user['name'],'email'=>$user['email'],'ip'=>$ip,'text'=>$text,'at'=>date('c')];
         json_write_atomic('comments/' . $id . '.json', $commentList);
         $message = 'コメントしました';
     } elseif ($action === 'rate') {
@@ -169,12 +226,21 @@ $history = array_reverse($history);
                 <label>非公開メモ<textarea name="memo" rows="2" placeholder="自分だけの学びメモを残せます。"><?= htmlspecialchars($memos[$m['id']] ?? '') ?></textarea></label>
                 <button type="submit" class="secondary">メモを保存</button>
             </form>
-            <?php $commentList = read_json('comments/' . $m['id'] . '.json', []); ?>
+            <?php 
+                $commentList = $normalizeComments($m['id'], read_json('comments/' . $m['id'] . '.json', []));
+                $commentTree = $buildTree($commentList);
+            ?>
             <div class="notice" style="margin-top:8px;">コメント</div>
-            <ul>
-                <?php foreach ($commentList as $c): ?>
-                    <li><?= htmlspecialchars($c['user']) ?> (<?= htmlspecialchars($c['ip']) ?>): <?= htmlspecialchars($c['text']) ?></li>
-                <?php endforeach; ?>
+            <form method="post" class="comment-reply" style="margin-bottom:8px;">
+                <?= csrf_field(); ?>
+                <input type="hidden" name="action" value="comment">
+                <input type="hidden" name="id" value="<?= htmlspecialchars($m['id']) ?>">
+                <input type="hidden" name="parent" value="">
+                <label>コメントを追加<textarea name="comment" rows="2"></textarea></label>
+                <button type="submit" class="secondary">投稿</button>
+            </form>
+            <ul class="comment-list">
+                <?php $renderComments($commentTree, $m['id']); ?>
             </ul>
         </div>
         <?php endforeach; ?>
@@ -188,10 +254,6 @@ $history = array_reverse($history);
         </div>
     </div>
     <div class="sticky">
-        <div class="card highlight">
-            <h3>登録を右に集約</h3>
-            <p class="subtext">学ぶ→受講→記録の流れを邪魔しない位置に配置しました。思い立った瞬間に登録できます。</p>
-        </div>
         <div class="card">
             <h3>教材登録</h3>
             <form method="post" enctype="multipart/form-data">
@@ -204,6 +266,14 @@ $history = array_reverse($history);
                 <label><input type="checkbox" name="is_public" value="1">公開する</label>
                 <button type="submit">保存</button>
             </form>
+        </div>
+        <div class="card">
+            <h3>新着一覧</h3>
+            <ul class="muted">
+                <?php foreach ($list as $mRecent): list($ownerNameRecent, $ownerPharmacyRecent) = $ownerInfo($mRecent['owner']); ?>
+                    <li><?= htmlspecialchars(substr($mRecent['created'] ?? '', 0, 10)) ?>：<?= htmlspecialchars($mRecent['title']) ?>（<?= htmlspecialchars($ownerPharmacyRecent ?: '未設定') ?>）</li>
+                <?php endforeach; ?>
+            </ul>
         </div>
     </div>
 </div>
