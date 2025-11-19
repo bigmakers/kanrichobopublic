@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>個人バックアップ</title><link rel="stylesheet" href="../styles.css"></head>
+<head><meta charset="UTF-8"><title>個人バックアップ</title><link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>"></head>
 <body class="mono">
 <h1>個人バックアップ</h1>
 <?= member_nav(); ?>

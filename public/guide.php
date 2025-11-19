@@ -4,7 +4,7 @@ $logged = !empty($_SESSION['user']);
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>使い方ガイド</title><link rel="stylesheet" href="styles.css"></head>
+<head><meta charset="UTF-8"><title>使い方ガイド</title><link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>"></head>
 <body class="mono">
 <h1>使い方ガイド</h1>
 <?php if ($logged): ?>

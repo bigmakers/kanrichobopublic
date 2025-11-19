@@ -6,6 +6,9 @@ $account = load_user_meta($user['email'], 'account');
 $todo = load_user_meta($user['email'], 'todo');
 $schedules = load_user_meta($user['email'], 'schedule');
 $rx = load_user_meta($user['email'], 'rx');
+$todoItems = array_values(array_filter($todo ?? [], function ($row) {
+    return trim($row['text'] ?? '') !== '';
+}));
 $aff = read_json('affiliates.json', ['header' => '']);
 ?>
 <!doctype html>
@@ -13,7 +16,7 @@ $aff = read_json('affiliates.json', ['header' => '']);
 <head>
     <meta charset="UTF-8">
     <title>薬局管理帳簿ウェブシステム</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>">
 </head>
 <body class="mono">
 <?= $aff['header'] ?? '' ?>
@@ -31,6 +34,7 @@ $aff = read_json('affiliates.json', ['header' => '']);
 </div>
 <div class="card">
     <h2>ショートカット</h2>
+    <p class="muted">よく使う機能にすぐアクセスできます。</p>
     <ul>
         <li><a href="<?= url_for('member/checklist.php'); ?>">日次チェックリスト</a></li>
         <li><a href="<?= url_for('member/rx_counts.php'); ?>">月次処方箋枚数</a></li>
@@ -41,23 +45,35 @@ $aff = read_json('affiliates.json', ['header' => '']);
 </div>
 <div class="card">
     <h2>TODO</h2>
-    <ul>
-        <?php for ($i=0; $i<10; $i++): ?>
-            <li><?= htmlspecialchars($todo[$i]['text'] ?? '') ?> <?= !empty($todo[$i]['done']) ? '✅' : '' ?></li>
-        <?php endfor; ?>
-    </ul>
+    <?php if (count($todoItems) === 0): ?>
+        <p class="muted">未登録です。<a href="<?= url_for('member/checklist.php'); ?>">チェックリスト</a>から追加できます。</p>
+    <?php else: ?>
+        <ul>
+            <?php foreach ($todoItems as $row): ?>
+                <li><?= htmlspecialchars($row['text'] ?? '') ?> <?= !empty($row['done']) ? '✅' : '' ?></li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
 </div>
 <div class="card">
     <h2>マイスケジュール予定</h2>
-    <ul>
-        <?php foreach (($schedules['events'] ?? []) as $event): ?>
-            <li><?= htmlspecialchars($event['date'] ?? '') ?> - <?= htmlspecialchars($event['title'] ?? '') ?></li>
-        <?php endforeach; ?>
-    </ul>
+    <?php if (empty($schedules['events'])): ?>
+        <p class="muted">予定が登録されていません。<a href="<?= url_for('member/my_schedule.php'); ?>">マイスケジュール</a>から追加できます。</p>
+    <?php else: ?>
+        <ul>
+            <?php foreach (($schedules['events'] ?? []) as $event): ?>
+                <li><?= htmlspecialchars($event['date'] ?? '') ?> - <?= htmlspecialchars($event['title'] ?? '') ?></li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
 </div>
 <div class="card">
     <h2>今月の処方箋枚数</h2>
-    <p><?= htmlspecialchars($rx[date('Y-m')]['total'] ?? '未入力') ?></p>
+    <?php if (!empty($rx[date('Y-m')]['total'])): ?>
+        <p><?= htmlspecialchars($rx[date('Y-m')]['total']) ?></p>
+    <?php else: ?>
+        <p class="muted">未入力です。<a href="<?= url_for('member/rx_counts.php'); ?>">当月の枚数を登録</a>しましょう。</p>
+    <?php endif; ?>
 </div>
 </body>
 </html>

@@ -7,7 +7,7 @@ $yearAgo = strtotime('-1 year');
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>研修受講印刷</title><link rel="stylesheet" href="../styles.css"></head>
+<head><meta charset="UTF-8"><title>研修受講印刷</title><link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>"></head>
 <body class="print">
 <h2>直近1年の研修履歴</h2>
 <ul>

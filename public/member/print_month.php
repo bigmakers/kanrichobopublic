@@ -7,7 +7,7 @@ $month = sanitize_text($_GET['month'] ?? date('Y-m'));
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>印刷ビュー</title><link rel="stylesheet" href="../styles.css"></head>
+<head><meta charset="UTF-8"><title>印刷ビュー</title><link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>"></head>
 <body class="print">
 <h2><?= htmlspecialchars($month) ?>の記録</h2>
 <table class="table" style="font-size:12px;">

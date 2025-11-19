@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>アカウント設定</title><link rel="stylesheet" href="../styles.css"></head>
+<head><meta charset="UTF-8"><title>アカウント設定</title><link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>"></head>
 <body class="mono">
 <h1>アカウント設定</h1>
 <?= member_nav(); ?>
@@ -34,10 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?= csrf_field(); ?>
     <input type="hidden" name="action" value="save">
     <label>許可期限<input type="date" name="permit_expiry" value="<?= htmlspecialchars($account['permit_expiry'] ?? '') ?>"></label>
-    <label>施設基準（カンマ区切り）<input type="text" name="facilities" value="<?= htmlspecialchars(implode(',', $account['facilities'] ?? [])) ?>"></label>
-    <label>公費枠（カンマ区切り）<input type="text" name="public_frames" value="<?= htmlspecialchars(implode(',', $account['public_frames'] ?? [])) ?>"></label>
-    <label>保険薬局/機関コード<input type="text" name="insurance_code" value="<?= htmlspecialchars($account['insurance_code'] ?? '') ?>"></label>
-    <label>PMDAメディナビ情報<input type="text" name="pmda" value="<?= htmlspecialchars($account['pmda'] ?? '') ?>"></label>
+    <label>施設基準（カンマ区切り）<input type="text" name="facilities" value="<?= htmlspecialchars(implode(',', $account['facilities'] ?? [])) ?>" placeholder="例: 基準1,基準2"></label>
+    <label>公費枠（カンマ区切り）<input type="text" name="public_frames" value="<?= htmlspecialchars(implode(',', $account['public_frames'] ?? [])) ?>" placeholder="例: 公費1,公費2"></label>
+    <p class="muted">複数ある場合はカンマ「,」で区切ってください。</p>
+    <label>保険薬局/機関コード<input type="text" name="insurance_code" value="<?= htmlspecialchars($account['insurance_code'] ?? '') ?>" placeholder="10桁コードなど"></label>
+    <label>PMDAメディナビ情報<input type="text" name="pmda" value="<?= htmlspecialchars($account['pmda'] ?? '') ?>" placeholder="URLやID"></label>
     <button type="submit">保存</button>
 </form>
 
