@@ -144,18 +144,35 @@ function changeDate(sel){
     <div class="card col-main">
         <label>日付<input type="date" name="date" value="<?= htmlspecialchars($date) ?>" onchange="changeDate(this)"></label>
         <div class="field-group">
-            <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>チェック項目</span>
-                <small class="muted">左寄せで、自然なチェック操作ができます</small>
+            <div class="section-title" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+                <div>
+                    <span>チェック項目</span>
+                    <div class="muted">一日の流れに合わせ左から順にチェックできます</div>
+                </div>
+                <div class="check-controls">
+                    <span id="checks-summary" class="check-summary">0件</span>
+                    <button type="button" class="secondary btn-compact" data-check-action="select" data-check-target="main-checks">全選択</button>
+                    <button type="button" class="secondary btn-compact" data-check-action="clear" data-check-target="main-checks">クリア</button>
+                </div>
             </div>
-            <div class="checks-list">
+            <div class="checks-list" data-check-group="main-checks">
                 <?php foreach ($dailyChecks as $item): ?>
                     <label class="check-option"><input type="checkbox" name="checks[]" value="<?= htmlspecialchars($item) ?>" <?= in_array($item, $entry['checks'] ?? []) ? 'checked' : '' ?>><span><?= htmlspecialchars($item) ?></span></label>
                 <?php endforeach; ?>
             </div>
             <?php if ($scheduleCheckOptions): ?>
-                <div class="section-title" style="margin-top:8px;">スケジュール参加チェック</div>
-                <div class="checks-list">
+                <div class="section-title" style="margin-top:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+                    <div>
+                        <span>スケジュール参加チェック</span>
+                        <div class="muted">予定ごとに参加チェックを付けると記録へ残ります</div>
+                    </div>
+                    <div class="check-controls">
+                        <span id="schedule-summary" class="check-summary">0件</span>
+                        <button type="button" class="secondary btn-compact" data-check-action="select" data-check-target="schedule-checks">全参加</button>
+                        <button type="button" class="secondary btn-compact" data-check-action="clear" data-check-target="schedule-checks">クリア</button>
+                    </div>
+                </div>
+                <div class="checks-list" data-check-group="schedule-checks">
                     <?php foreach ($scheduleCheckOptions as $opt): ?>
                         <label class="check-option"><input type="checkbox" name="schedule_checks[]" value="<?= htmlspecialchars($opt) ?>" <?= in_array($opt, $entry['checks'] ?? []) ? 'checked' : '' ?>><span><?= htmlspecialchars($opt) ?></span></label>
                     <?php endforeach; ?>
@@ -240,6 +257,45 @@ todoInputs.forEach(el => {
     el.addEventListener('input', debounceSaveTodo);
     el.addEventListener('change', debounceSaveTodo);
 });
+
+function updateCheckSummary(group, summaryId) {
+    const boxes = document.querySelectorAll(`[data-check-group="${group}"] input[type="checkbox"]`);
+    const summary = document.getElementById(summaryId);
+    if (!summary) return;
+    if (boxes.length === 0) {
+        summary.textContent = '候補なし';
+        return;
+    }
+    const checked = Array.from(boxes).filter(cb => cb.checked).length;
+    summary.textContent = `選択 ${checked}/${boxes.length}`;
+}
+function initCheckGroups() {
+    const configs = [
+        {group:'main-checks', summary:'checks-summary'},
+        {group:'schedule-checks', summary:'schedule-summary'}
+    ];
+    configs.forEach(cfg => {
+        updateCheckSummary(cfg.group, cfg.summary);
+        document.querySelectorAll(`[data-check-group="${cfg.group}"] input[type="checkbox"]`).forEach(cb => {
+            cb.addEventListener('change', () => updateCheckSummary(cfg.group, cfg.summary));
+        });
+    });
+    document.querySelectorAll('[data-check-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-check-target');
+            if (!target) return;
+            const boxes = document.querySelectorAll(`[data-check-group="${target}"] input[type="checkbox"]`);
+            const action = btn.getAttribute('data-check-action');
+            boxes.forEach(box => {
+                if (action === 'select') { box.checked = true; }
+                if (action === 'clear') { box.checked = false; }
+            });
+            const config = configs.find(c => c.group === target);
+            if (config) { updateCheckSummary(config.group, config.summary); }
+        });
+    });
+}
+initCheckGroups();
 </script>
 </body>
 </html>

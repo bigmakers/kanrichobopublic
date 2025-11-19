@@ -192,11 +192,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $q = sanitize_text($_GET['q'] ?? '');
-$list = array_filter($all, function($m) use ($user, $q) {
-    $match = $q === '' || mb_strpos($m['title'], $q) !== false;
-    return ($m['public'] || $m['owner'] === $user['email']) && $match;
+$visibleMaterials = array_filter($all, function($m) use ($user) {
+    return ($m['public'] ?? false) || (($m['owner'] ?? '') === $user['email']);
+});
+$list = array_filter($visibleMaterials, function($m) use ($q) {
+    $match = $q === '' || mb_strpos($m['title'] ?? '', $q) !== false;
+    return $match;
 });
 usort($list, fn($a,$b) => strcmp($b['created'] ?? '', $a['created'] ?? ''));
+$newestSidebar = $visibleMaterials;
+usort($newestSidebar, fn($a,$b) => strcmp($b['created'] ?? '', $a['created'] ?? ''));
+$newestSidebar = array_slice($newestSidebar, 0, 10);
 $history = load_user_meta($user['email'], 'training_history');
 $history = array_reverse($history);
 $titleIndex = [];
@@ -392,7 +398,7 @@ $recentComments = array_slice($recentComments, 0, 5);
         <div class="card">
             <h3>新着一覧</h3>
             <ul class="muted">
-                <?php foreach ($list as $mRecent): list($ownerNameRecent, $ownerPharmacyRecent) = $ownerInfo($mRecent['owner']); ?>
+                <?php foreach ($newestSidebar as $mRecent): list($ownerNameRecent, $ownerPharmacyRecent) = $ownerInfo($mRecent['owner']); ?>
                     <li>
                         <a href="#thread-<?= htmlspecialchars($mRecent['id']) ?>">
                             <?= htmlspecialchars(substr($mRecent['created'] ?? '', 0, 10)) ?>：<?= htmlspecialchars($mRecent['title']) ?>（<?= htmlspecialchars($ownerPharmacyRecent ?: '未設定') ?>）

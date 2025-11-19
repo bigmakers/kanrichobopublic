@@ -300,6 +300,9 @@ button.danger:hover {
 .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
 .checks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 12px 0; }
 .checks-list { display: flex; flex-direction: column; gap: 8px; }
+.check-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.check-summary { font-size: 0.8rem; color: var(--text-muted); }
+.btn-compact { padding: 6px 10px; font-size: 0.8rem; }
 .check-option {
   display: flex;
   align-items: flex-start;
