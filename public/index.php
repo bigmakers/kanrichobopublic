@@ -60,7 +60,7 @@ $aff = read_json('affiliates.json', ['header' => '']);
                     <li><a href="<?= url_for('member/rx_counts.php'); ?>">月次処方箋枚数</a> — 5分で数字を残す</li>
                     <li><a href="<?= url_for('member/my_schedule.php'); ?>">マイスケジュール編集</a> — 直近を1件入力</li>
                     <li><a href="<?= url_for('member/training_materials.php'); ?>">研修教材</a> — 受講済みを記録</li>
-                    <li><a href="<?= url_for('member/print_month.php'); ?>">印刷ビュー</a> — A4で確認</li>
+                    <li><a target="_blank" rel="noopener" href="<?= url_for('member/print_month.php'); ?>">印刷ビュー</a> — A4で確認</li>
                 </ul>
             </div>
 
