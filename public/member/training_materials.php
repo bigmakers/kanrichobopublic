@@ -250,7 +250,6 @@ $recentComments = array_slice($recentComments, 0, 5);
         <h2>閲覧→受講で記録に残す</h2>
         <span class="badge">行動心理</span>
     </div>
-    <p class="subtext">2ちゃんねる掲示板風のタイムラインに並ぶ教材を上から順に読む→受講ボタンで記録、という直線的な導線にしています。</p>
 </div>
 <div class="training-layout">
     <div>
@@ -259,7 +258,6 @@ $recentComments = array_slice($recentComments, 0, 5);
                 <label>スレッド検索<input type="text" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="キーワードで検索"></label>
                 <button type="submit" class="secondary">検索</button>
             </form>
-            <p class="notice">閲覧して内容を理解 → すぐ隣の受講ボタンで記録、というワンステップ導線にしています。</p>
         </div>
         <?php $threadNo = 1; foreach ($list as $m): list($ownerName, $ownerPharmacy) = $ownerInfo($m['owner']); $isOwner = $m['owner'] === $user['email']; $commentList = $commentCache[$m['id']] ?? []; ?>
         <div class="bbs-thread" id="thread-<?= htmlspecialchars($m['id']) ?>">
