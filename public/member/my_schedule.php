@@ -4,111 +4,249 @@ enforce_login();
 $user = $_SESSION['user'];
 csrf_check();
 $schedule = load_user_meta($user['email'], 'schedule');
+
+// POST処理（前回と同じ安定版ロジック）
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $events = [];
-    foreach ($_POST['events']['date'] ?? [] as $i=>$d) {
+    $postedEvents = $_POST['events'] ?? [];
+    foreach ($postedEvents as $row) {
+        $d = sanitize_text($row['date'] ?? '');
+        $t = sanitize_text($row['title'] ?? '');
+        if ($d === '' && $t === '') { continue; }
         $events[] = [
-            'date' => sanitize_text($d),
-            'title' => sanitize_text($_POST['events']['title'][$i] ?? ''),
-            'detail' => sanitize_text($_POST['events']['detail'][$i] ?? ''),
-            'participate' => !empty($_POST['events']['participate'][$i])
+            'date' => $d,
+            'title' => $t,
+            'detail' => sanitize_text($row['detail'] ?? ''),
+            'participate' => !empty($row['participate'])
         ];
     }
+    usort($events, fn($a, $b) => strcmp($a['date'], $b['date']));
     $schedule['events'] = $events;
     save_user_meta($user['email'], 'schedule', $schedule);
+    header('Location: ?saved=1');
+    exit;
 }
-$events = $schedule['events'] ?? [[]];
-if (!$events) { $events = [[]]; }
-$upcoming = array_filter($events, fn($ev) => !empty($ev['date']));
-usort($upcoming, function($a, $b) {
-    return strcmp($a['date'] ?? '', $b['date'] ?? '');
-});
+
+$events = $schedule['events'] ?? [];
+if (empty($events)) { $events = [['id' => uniqid()]]; }
+else { foreach($events as &$e) { $e['id'] = uniqid(); } }
+
+// 表示用にデータを整理（過去と未来、月別グループ化）
+$today = date('Y-m-d');
+$groupedEvents = [];
+foreach ($events as $e) {
+    if (empty($e['date'])) continue;
+    $monthKey = date('Y年n月', strtotime($e['date']));
+    $groupedEvents[$monthKey][] = $e;
+}
+// 未来の月が先に来るように（必要ならkrsortで逆順）
+ksort($groupedEvents);
+
+$isSaved = !empty($_GET['saved']);
 ?>
 <!doctype html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <title>マイスケジュール</title>
-    <link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マイスケジュール</title>
+<link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>">
+<style>
+    /* スケジュール専用スタイル */
+    .layout-grid {
+        display: grid; grid-template-columns: 1fr 400px; gap: 24px; align-items: start;
+    }
+    @media (max-width: 900px) { .layout-grid { grid-template-columns: 1fr; } }
+
+    /* タイムラインデザイン */
+    .timeline-section { position: relative; padding-left: 20px; margin-bottom: 30px; }
+    .timeline-section::before {
+        content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+        width: 4px; background: #e5e7eb; border-radius: 4px;
+    }
+    
+    .month-header {
+        font-size: 1.2rem; font-weight: bold; color: var(--primary);
+        background: #fff; padding: 5px 15px; border-radius: 20px;
+        border: 1px solid var(--primary); display: inline-block;
+        margin-bottom: 16px; position: relative; z-index: 2;
+    }
+
+    .event-card {
+        background: #fff; border: 1px solid var(--border); border-radius: 8px;
+        padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        display: flex; gap: 16px; align-items: flex-start;
+        transition: transform 0.2s;
+    }
+    .event-card:hover { transform: translateX(4px); border-color: var(--primary); }
+    
+    /* 過去の予定 */
+    .event-card.past { opacity: 0.6; background: #f9fafb; border-style: dashed; }
+    /* 今日の予定 */
+    .event-card.today { border: 2px solid var(--primary); background: #eff6ff; }
+
+    .date-badge {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-width: 60px; height: 60px; background: #f3f4f6; border-radius: 8px;
+        color: var(--text-main); font-weight: bold; line-height: 1.2; text-align: center;
+    }
+    .date-badge .day { font-size: 1.4rem; }
+    .date-badge .dow { font-size: 0.8rem; color: var(--text-muted); }
+    .event-card.today .date-badge { background: var(--primary); color: white; }
+    .event-card.today .date-badge .dow { color: #dbeafe; }
+
+    .event-content { flex: 1; }
+    .event-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 4px; }
+    .event-detail { color: var(--text-muted); font-size: 0.9rem; white-space: pre-wrap; }
+    .tag-participate {
+        display: inline-block; font-size: 0.75rem; padding: 2px 8px;
+        border-radius: 4px; background: #d1fae5; color: #065f46;
+        margin-top: 6px; font-weight: bold;
+    }
+
+    /* 編集フォーム（右カラム） */
+    .edit-area { background: #fff; padding: 20px; border-radius: 8px; border: 1px solid var(--border); position: sticky; top: 20px; }
+    .edit-row { border-bottom: 1px solid #f3f4f6; padding-bottom: 16px; margin-bottom: 16px; position: relative; }
+    .btn-delete {
+        position: absolute; top: 0; right: 0; background: none; border: none;
+        color: #9ca3af; cursor: pointer; font-size: 1.2rem;
+    }
+    .btn-delete:hover { color: var(--danger); }
+</style>
 </head>
-<body class="mono">
-<div class="layout">
+<body>
+
+<div class="container">
     <h1>マイスケジュール</h1>
     <?= member_nav(); ?>
+    <div id="toast" class="toast">保存しました</div>
 
-    <div class="card highlight">
-        <h2 class="card-title">今日決めて、先回りで行動</h2>
-        <p class="subtext">やることを「日付」と「一言メモ」に落とすだけで実行率が変わります。迷ったら、まず1件だけ登録してみてください。</p>
-        <div class="hero-actions">
-            <a class="btn" href="<?= url_for('member/checklist.php'); ?>">チェックリストと連携</a>
-            <button type="button" class="secondary" id="add-row">予定を追加</button>
-        </div>
-    </div>
-
-    <div class="two-col">
-        <form method="post" class="card" id="schedule-form">
-            <?= csrf_field(); ?>
-            <div class="section-title" style="margin-bottom:16px;">
-                <h2>予定リスト</h2>
-                <span class="muted">上から順に今日→先の順で並びます</span>
-            </div>
-            <div id="events">
-                <?php foreach ($events as $i=>$e): ?>
-                    <div class="event-row">
-                        <div class="row-grid">
-                            <label>日付<input type="date" name="events[date][]" value="<?= htmlspecialchars($e['date'] ?? '') ?>"></label>
-                            <label>タイトル<input type="text" name="events[title][]" placeholder="勉強会・巡回予定など" value="<?= htmlspecialchars($e['title'] ?? '') ?>"></label>
-                            <label class="inline" style="gap:8px;">
-                                <input type="checkbox" name="events[participate][<?= $i ?>]" value="1" <?= !empty($e['participate'])?'checked':''; ?>>参加予定
-                            </label>
-                        </div>
-                        <label>内容<textarea name="events[detail][]" rows="2" placeholder="場所・共有事項や持ち物メモなどを残せます。"><?= htmlspecialchars($e['detail'] ?? '') ?></textarea></label>
+    <div class="layout-grid">
+        <div class="col-view">
+            <?php if (empty($groupedEvents)): ?>
+                <div class="card" style="text-align:center; padding:40px; color:var(--text-muted);">
+                    <p>予定が登録されていません。<br>右側のフォームから追加してください。</p>
+                </div>
+            <?php else: ?>
+                <?php foreach ($groupedEvents as $month => $monthEvents): ?>
+                    <div class="timeline-section">
+                        <div class="month-header"><?= htmlspecialchars($month) ?></div>
+                        
+                        <?php foreach ($monthEvents as $ev): 
+                            $isPast = $ev['date'] < $today;
+                            $isToday = $ev['date'] === $today;
+                            $w = ['日','月','火','水','木','金','土'][date('w', strtotime($ev['date']))];
+                            $d = date('j', strtotime($ev['date']));
+                        ?>
+                            <div class="event-card <?= $isPast ? 'past' : '' ?> <?= $isToday ? 'today' : '' ?>">
+                                <div class="date-badge">
+                                    <span class="day"><?= $d ?></span>
+                                    <span class="dow"><?= $w ?></span>
+                                </div>
+                                <div class="event-content">
+                                    <div class="event-title">
+                                        <?= htmlspecialchars($ev['title']) ?>
+                                        <?php if($isToday): ?><span style="font-size:0.8rem; color:var(--primary); margin-left:8px;">● 今日</span><?php endif; ?>
+                                    </div>
+                                    <?php if (!empty($ev['detail'])): ?>
+                                        <div class="event-detail"><?= nl2br(htmlspecialchars($ev['detail'])) ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($ev['participate'])): ?>
+                                        <div class="tag-participate">参加記録対象</div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 <?php endforeach; ?>
-            </div>
-            <div class="actions">
-                <button type="button" class="secondary" id="add-row-bottom">行を追加</button>
-                <button type="submit">保存</button>
-            </div>
-        </form>
-
-        <div class="card col-side sticky">
-            <h2 class="card-title">登録済みの予定</h2>
-            <?php if ($upcoming): ?>
-                <ul class="checks-list">
-                    <?php foreach ($upcoming as $ev): ?>
-                        <li style="list-style:none; padding:12px; border:1px solid var(--border); border-radius:var(--radius); background:#fff;">
-                            <div style="font-weight:700;"><?= htmlspecialchars($ev['date'] ?? '') ?> <?= htmlspecialchars($ev['title'] ?? '予定') ?></div>
-                            <?php if (!empty($ev['detail'])): ?><div class="muted"><?= nl2br(htmlspecialchars($ev['detail'])) ?></div><?php endif; ?>
-                            <?php if (!empty($ev['participate'])): ?><div class="badge" style="margin-top:6px;">参加記録対象</div><?php endif; ?>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            <?php else: ?>
-                <p class="muted">まだ予定はありません。まずは1件登録してみましょう。</p>
             <?php endif; ?>
         </div>
+
+        <form method="post" class="col-edit">
+            <?= csrf_field(); ?>
+            <div class="edit-area">
+                <div class="card-title">予定の編集・追加</div>
+                <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">
+                    日付を入力すると自動で並び替えられます。
+                </div>
+
+                <div id="events-container">
+                    <?php foreach ($events as $e): 
+                        $uid = $e['id'] ?? uniqid(); 
+                    ?>
+                        <div class="edit-row" id="row-<?= $uid ?>">
+                            <button type="button" class="btn-delete" onclick="removeRow('<?= $uid ?>')" title="削除">×</button>
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:0.85rem;">日付</label>
+                                <input type="date" name="events[<?= $uid ?>][date]" value="<?= htmlspecialchars($e['date'] ?? '') ?>">
+                            </div>
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:0.85rem;">タイトル</label>
+                                <input type="text" name="events[<?= $uid ?>][title]" value="<?= htmlspecialchars($e['title'] ?? '') ?>" placeholder="タイトル">
+                            </div>
+                            <div style="margin-bottom:8px;">
+                                <textarea name="events[<?= $uid ?>][detail]" rows="1" placeholder="メモ（任意）" style="font-size:0.9rem;"><?= htmlspecialchars($e['detail'] ?? '') ?></textarea>
+                            </div>
+                            <label style="display:flex; align-items:center; font-size:0.85rem;">
+                                <input type="checkbox" name="events[<?= $uid ?>][participate]" value="1" <?= !empty($e['participate'])?'checked':''; ?>>
+                                <span style="margin-left:4px;">参加記録をつける</span>
+                            </label>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <button type="button" class="btn w-100 secondary" id="btn-add-row" style="margin-bottom:12px; border:1px dashed #aaa; background:#f9fafb; color:#555;">+ 行を追加</button>
+                <button type="submit" class="btn w-100">保存する</button>
+            </div>
+        </form>
     </div>
 </div>
+
 <script>
-const template = () => {
-    const wrap = document.createElement('div');
-    wrap.className = 'event-row';
-    wrap.innerHTML = `
-        <div class="row-grid">
-            <label>日付<input type="date" name="events[date][]"></label>
-            <label>タイトル<input type="text" name="events[title][]" placeholder="勉強会・巡回予定など"></label>
-            <label class="inline" style="gap:8px;">
-                <input type="checkbox" name="events[participate][${Date.now()}]" value="1">参加予定
-            </label>
+// トースト表示
+<?php if($isSaved): ?>
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+    history.replaceState(null, null, location.pathname);
+<?php endif; ?>
+
+// 行追加
+document.getElementById('btn-add-row').addEventListener('click', function() {
+    const container = document.getElementById('events-container');
+    const uid = 'new_' + Date.now();
+    
+    const div = document.createElement('div');
+    div.className = 'edit-row';
+    div.id = 'row-' + uid;
+    div.innerHTML = `
+        <button type="button" class="btn-delete" onclick="removeRow('${uid}')">×</button>
+        <div style="margin-bottom:8px;">
+            <label style="font-size:0.85rem;">日付</label>
+            <input type="date" name="events[${uid}][date]">
         </div>
-        <label>内容<textarea name="events[detail][]" rows="2" placeholder="場所・共有事項や持ち物メモなどを残せます。"></textarea></label>
+        <div style="margin-bottom:8px;">
+            <label style="font-size:0.85rem;">タイトル</label>
+            <input type="text" name="events[${uid}][title]" placeholder="新しい予定">
+        </div>
+        <div style="margin-bottom:8px;">
+            <textarea name="events[${uid}][detail]" rows="1" placeholder="メモ（任意）" style="font-size:0.9rem;"></textarea>
+        </div>
+        <label style="display:flex; align-items:center; font-size:0.85rem;">
+            <input type="checkbox" name="events[${uid}][participate]" value="1">
+            <span style="margin-left:4px;">参加記録をつける</span>
+        </label>
     `;
-    return wrap;
+    container.appendChild(div);
+});
+
+// 行削除
+window.removeRow = function(uid) {
+    const row = document.getElementById('row-' + uid);
+    if (row && confirm('削除しますか？')) {
+        row.remove();
+    }
 };
-const addButtons = [document.getElementById('add-row'), document.getElementById('add-row-bottom')];
-addButtons.forEach(btn => btn && btn.addEventListener('click', () => {
-    document.getElementById('events').appendChild(template());
-}));
 </script>
-</body></html>
+</body>
+</html>
