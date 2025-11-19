@@ -4,21 +4,42 @@ enforce_login();
 $user = $_SESSION['user'];
 csrf_check();
 $schedule = load_user_meta($user['email'], 'schedule');
+if (!is_array($schedule)) { $schedule = []; }
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $dates = $_POST['events']['date'] ?? [];
+    $titles = $_POST['events']['title'] ?? [];
+    $details = $_POST['events']['detail'] ?? [];
+    $participate = $_POST['events']['participate'] ?? [];
+
     $events = [];
-    foreach ($_POST['events']['date'] ?? [] as $i=>$d) {
+    foreach ($dates as $i => $d) {
+        $dateVal = sanitize_text($d);
+        $titleVal = sanitize_text($titles[$i] ?? '');
+        $detailVal = sanitize_text($details[$i] ?? '');
+        $participateVal = !empty($participate[$i]);
+
+        if ($dateVal === '' && $titleVal === '' && $detailVal === '') {
+            continue;
+        }
+
         $events[] = [
-            'date' => sanitize_text($d),
-            'title' => sanitize_text($_POST['events']['title'][$i] ?? ''),
-            'detail' => sanitize_text($_POST['events']['detail'][$i] ?? ''),
-            'participate' => !empty($_POST['events']['participate'][$i])
+            'date' => $dateVal,
+            'title' => $titleVal,
+            'detail' => $detailVal,
+            'participate' => $participateVal,
         ];
     }
+
     $schedule['events'] = $events;
     save_user_meta($user['email'], 'schedule', $schedule);
 }
-$events = $schedule['events'] ?? [[]];
-if (!$events) { $events = [[]]; }
+
+$storedEvents = $schedule['events'] ?? [];
+if (!is_array($storedEvents)) {
+    $storedEvents = [];
+}
+$events = $storedEvents ?: [[]];
 $upcoming = array_filter($events, fn($ev) => !empty($ev['date']));
 usort($upcoming, function($a, $b) {
     return strcmp($a['date'] ?? '', $b['date'] ?? '');
@@ -56,13 +77,13 @@ usort($upcoming, function($a, $b) {
                 <?php foreach ($events as $i=>$e): ?>
                     <div class="event-row">
                         <div class="row-grid">
-                            <label>日付<input type="date" name="events[date][]" value="<?= htmlspecialchars($e['date'] ?? '') ?>"></label>
-                            <label>タイトル<input type="text" name="events[title][]" placeholder="勉強会・巡回予定など" value="<?= htmlspecialchars($e['title'] ?? '') ?>"></label>
+                            <label>日付<input type="date" name="events[date][<?= $i ?>]" value="<?= htmlspecialchars($e['date'] ?? '') ?>"></label>
+                            <label>タイトル<input type="text" name="events[title][<?= $i ?>]" placeholder="勉強会・巡回予定など" value="<?= htmlspecialchars($e['title'] ?? '') ?>"></label>
                             <label class="inline" style="gap:8px;">
                                 <input type="checkbox" name="events[participate][<?= $i ?>]" value="1" <?= !empty($e['participate'])?'checked':''; ?>>参加予定
                             </label>
                         </div>
-                        <label>内容<textarea name="events[detail][]" rows="2" placeholder="場所・共有事項や持ち物メモなどを残せます。"><?= htmlspecialchars($e['detail'] ?? '') ?></textarea></label>
+                        <label>内容<textarea name="events[detail][<?= $i ?>]" rows="2" placeholder="場所・共有事項や持ち物メモなどを残せます。"><?= htmlspecialchars($e['detail'] ?? '') ?></textarea></label>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -91,18 +112,20 @@ usort($upcoming, function($a, $b) {
     </div>
 </div>
 <script>
+let scheduleIndex = <?= (int)count($events); ?>;
 const template = () => {
+    const idx = scheduleIndex++;
     const wrap = document.createElement('div');
     wrap.className = 'event-row';
     wrap.innerHTML = `
         <div class="row-grid">
-            <label>日付<input type="date" name="events[date][]"></label>
-            <label>タイトル<input type="text" name="events[title][]" placeholder="勉強会・巡回予定など"></label>
+            <label>日付<input type="date" name="events[date][${idx}]"></label>
+            <label>タイトル<input type="text" name="events[title][${idx}]" placeholder="勉強会・巡回予定など"></label>
             <label class="inline" style="gap:8px;">
-                <input type="checkbox" name="events[participate][${Date.now()}]" value="1">参加予定
+                <input type="checkbox" name="events[participate][${idx}]" value="1">参加予定
             </label>
         </div>
-        <label>内容<textarea name="events[detail][]" rows="2" placeholder="場所・共有事項や持ち物メモなどを残せます。"></textarea></label>
+        <label>内容<textarea name="events[detail][${idx}]" rows="2" placeholder="場所・共有事項や持ち物メモなどを残せます。"></textarea></label>
     `;
     return wrap;
 };
