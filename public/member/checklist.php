@@ -10,10 +10,19 @@ $nextDate = date('Y-m-d', strtotime($date . ' +1 day'));
 
 $checklists = load_user_meta($user['email'], 'checklists');
 $todo = load_user_meta($user['email'], 'todo');
+if (!is_array($todo)) {
+    $todo = [];
+}
 
 $normalizeTodo = function(array $todos): array {
     $packed = [];
     foreach ($todos as $row) {
+        if (is_string($row)) {
+            $row = ['text' => $row, 'done' => false];
+        }
+        if (!is_array($row)) {
+            continue;
+        }
         $text = trim($row['text'] ?? '');
         if ($text === '') { continue; }
         $packed[] = ['text' => $text, 'done' => !empty($row['done'])];
@@ -46,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $todo = $normalizeTodo($todo);
         save_user_meta($user['email'], 'todo', $todo);
         header('Content-Type: application/json');
-        echo json_encode(['status' => 'ok']);
+        echo json_encode(['status' => 'ok', 'todos' => $todo]);
         exit;
     }
 
@@ -437,46 +446,90 @@ function showToast(msg) {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 const todoContainer = document.getElementById('todo-list');
-const todoInputs = todoContainer.querySelectorAll('input[type="text"], input[type="checkbox"]');
-let todoTimer = null;
-async function saveTodo() {
-    const form = document.querySelector('form.layout-grid');
-    if (!form) return;
-    const fd = new FormData();
-    fd.append('csrf_token', form.querySelector('input[name="csrf_token"]').value);
-    fd.append('action', 'save_todo');
-    fd.append('date', form.querySelector('input[name="date"]').value);
-    document.querySelectorAll('.col-side .todo-row').forEach((row, idx) => {
-        const text = row.querySelector('input[type="text"]').value;
-        const done = row.querySelector('input[type="checkbox"]').checked;
-        fd.append(`todo[${idx}][text]`, text);
-        if (done) { fd.append(`todo[${idx}][done]`, '1'); }
-    });
-    try {
-        const res = await fetch(location.href, {method:'POST', body:fd});
-        if (res.ok) {
-            showToast('TODOを保存しました');
-        }
-    } catch (e) {
-        console.error(e);
-    }
-}
-function debounceSaveTodo() {
-    clearTimeout(todoTimer);
-    todoTimer = setTimeout(saveTodo, 800);
-}
-todoInputs.forEach(el => {
-    if (el.type === 'checkbox') {
-        el.addEventListener('change', function() {
-            const row = this.closest('.todo-row');
-            if(this.checked) row.classList.add('is-done');
-            else row.classList.remove('is-done');
-            saveTodo();
+if (todoContainer) {
+    const todoInputs = todoContainer.querySelectorAll('input[type="text"], input[type="checkbox"]');
+    let todoTimer = null;
+    let suppressTodoEvents = false;
+
+    function refreshTodoUI(todos) {
+        if (!Array.isArray(todos)) return;
+        const rows = todoContainer.querySelectorAll('.todo-row');
+        suppressTodoEvents = true;
+        rows.forEach((row, idx) => {
+            const data = todos[idx] ?? {text: '', done: false};
+            const textInput = row.querySelector('input[type="text"]');
+            const checkInput = row.querySelector('input[type="checkbox"]');
+            if (textInput) {
+                textInput.value = data.text ?? '';
+            }
+            if (checkInput) {
+                const isDone = Boolean(data.done);
+                checkInput.checked = isDone;
+                row.classList.toggle('is-done', isDone);
+            }
         });
-    } else {
-        el.addEventListener('input', debounceSaveTodo);
+        suppressTodoEvents = false;
     }
-});
+
+    async function saveTodo(showToastMessage = true) {
+        const form = document.querySelector('form.layout-grid');
+        if (!form) return;
+        const tokenField = form.querySelector('input[name="csrf_token"]');
+        if (!tokenField) return;
+
+        const fd = new FormData();
+        fd.append('csrf_token', tokenField.value);
+        fd.append('action', 'save_todo');
+        fd.append('date', form.querySelector('input[name="date"]').value);
+
+        todoContainer.querySelectorAll('.todo-row').forEach((row, idx) => {
+            const text = row.querySelector('input[type="text"]').value;
+            const done = row.querySelector('input[type="checkbox"]').checked;
+            fd.append(`todo[${idx}][text]`, text);
+            if (done) { fd.append(`todo[${idx}][done]`, '1'); }
+        });
+
+        try {
+            const res = await fetch(location.href, {method:'POST', body:fd, credentials:'same-origin'});
+            if (!res.ok) {
+                throw new Error('保存に失敗しました');
+            }
+            const payload = await res.json();
+            if (Array.isArray(payload.todos)) {
+                refreshTodoUI(payload.todos);
+            }
+            if (showToastMessage) {
+                showToast('TODOを保存しました');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('TODO保存に失敗しました。再読み込みしてください。');
+        }
+    }
+
+    function debounceSaveTodo() {
+        clearTimeout(todoTimer);
+        todoTimer = setTimeout(() => saveTodo(false), 800);
+    }
+
+    todoInputs.forEach(el => {
+        if (el.type === 'checkbox') {
+            el.addEventListener('change', function() {
+                if (suppressTodoEvents) return;
+                const row = this.closest('.todo-row');
+                if (row) {
+                    row.classList.toggle('is-done', this.checked);
+                }
+                saveTodo(false);
+            });
+        } else {
+            el.addEventListener('input', function() {
+                if (suppressTodoEvents) return;
+                debounceSaveTodo();
+            });
+        }
+    });
+}
 </script>
 </body>
 </html>
