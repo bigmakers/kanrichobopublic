@@ -6,6 +6,16 @@ $account = load_user_meta($user['email'], 'account');
 $todo = load_user_meta($user['email'], 'todo');
 $schedules = load_user_meta($user['email'], 'schedule');
 $rx = load_user_meta($user['email'], 'rx');
+$materials = read_json('training/materials.json', []);
+$history = load_user_meta($user['email'], 'training_history');
+$completedIds = array_column($history, 'id');
+usort($materials, fn($a,$b) => strcmp($b['created'] ?? '', $a['created'] ?? ''));
+$latestMaterial = $materials[0] ?? null;
+$suggestPool = array_filter($materials, function($m) use ($completedIds, $user) {
+    return !in_array($m['id'], $completedIds) && ($m['public'] ?? false || ($m['owner'] ?? '') === $user['email']);
+});
+shuffle($suggestPool);
+$randomMaterials = array_slice($suggestPool, 0, 5);
 $todoItems = array_values(array_filter($todo ?? [], function ($row) {
     return trim($row['text'] ?? '') !== '';
 }));
@@ -103,6 +113,27 @@ $aff = read_json('affiliates.json', ['header' => '']);
                         <?php endforeach; ?>
                     </ul>
                 <?php endif; ?>
+            </div>
+
+            <div class="card">
+                <div class="section-title">
+                    <h2>研修教材ピック</h2>
+                    <span class="badge">学びのスイッチ</span>
+                </div>
+                <?php if ($latestMaterial): ?>
+                    <p class="helper" style="margin-bottom:8px;">最新: <strong><?= htmlspecialchars($latestMaterial['title']) ?></strong></p>
+                <?php else: ?>
+                    <p class="muted">まだ教材がありません。<a href="<?= url_for('member/training_materials.php'); ?>">教材を登録</a>してみましょう。</p>
+                <?php endif; ?>
+                <?php if ($randomMaterials): ?>
+                    <ul>
+                        <?php foreach ($randomMaterials as $m): ?>
+                            <li><?= htmlspecialchars($m['title'] ?? '教材') ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <p class="muted" style="margin-top:6px;">未受講のものをランダムに5件ピックアップしています。</p>
+                <?php endif; ?>
+                <div class="actions"><a class="btn secondary" href="<?= url_for('member/training_materials.php'); ?>">教材へ進む</a></div>
             </div>
 
             <div class="card">

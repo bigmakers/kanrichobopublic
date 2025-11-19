@@ -4,6 +4,7 @@ enforce_login();
 $user = $_SESSION['user'];
 csrf_check();
 $schedule = load_user_meta($user['email'], 'schedule');
+$month = sanitize_text($_POST['month'] ?? ($_GET['month'] ?? date('Y-m')));
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $events = [];
     foreach ($_POST['events']['date'] ?? [] as $i=>$d) {
@@ -18,6 +19,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     save_user_meta($user['email'], 'schedule', $schedule);
 }
 $events = $schedule['events'] ?? [[]];
+$eventsByDate = [];
+foreach ($events as $ev) {
+    $day = $ev['date'] ?? '';
+    if ($day === '') continue;
+    $eventsByDate[$day][] = $ev;
+}
+$monthStart = strtotime($month . '-01');
+$firstDow = (int)date('N', $monthStart); // 1-7
+$daysInMonth = (int)date('t', $monthStart);
+$calendarCells = [];
+for ($i = 1; $i < $firstDow; $i++) { $calendarCells[] = null; }
+for ($d = 1; $d <= $daysInMonth; $d++) { $calendarCells[] = sprintf('%s-%02d', $month, $d); }
+$prevMonth = date('Y-m', strtotime('-1 month', $monthStart));
+$nextMonth = date('Y-m', strtotime('+1 month', $monthStart));
 ?>
 <!doctype html>
 <html lang="ja">
@@ -43,8 +58,34 @@ $events = $schedule['events'] ?? [[]];
         </div>
     </div>
 
-    <form method="post" class="card">
+    <div class="card">
+        <div class="section-title">
+            <h2>カレンダー</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <a class="btn secondary" href="?month=<?= htmlspecialchars($prevMonth) ?>">← 前月</a>
+                <label style="margin:0;">月<input type="month" name="month" form="schedule-form" value="<?= htmlspecialchars($month) ?>" onchange="location.href='?month='+this.value"></label>
+                <a class="btn secondary" href="?month=<?= htmlspecialchars($nextMonth) ?>">次月 →</a>
+            </div>
+        </div>
+        <div class="calendar">
+            <?php foreach ($calendarCells as $cell): ?>
+                <?php if ($cell === null): ?>
+                    <div class="day empty"></div>
+                <?php else: $eventsToday = $eventsByDate[$cell] ?? []; ?>
+                    <div class="day">
+                        <div class="date"><?= htmlspecialchars(substr($cell, -2)) ?></div>
+                        <?php foreach ($eventsToday as $ev): ?>
+                            <div class="event"><?= htmlspecialchars($ev['title'] ?? '予定') ?></div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <form method="post" class="card" id="schedule-form">
         <?= csrf_field(); ?>
+        <input type="hidden" name="month" value="<?= htmlspecialchars($month) ?>">
         <div id="events">
             <?php foreach ($events as $i=>$e): ?>
                 <div class="event-row">

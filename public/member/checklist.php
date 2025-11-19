@@ -6,6 +6,7 @@ csrf_check();
 $date = sanitize_text($_GET['date'] ?? date('Y-m-d'));
 $checklists = load_user_meta($user['email'], 'checklists');
 $todo = load_user_meta($user['email'], 'todo');
+$rxCounts = load_user_meta($user['email'], 'rx');
 $account = load_user_meta($user['email'], 'account');
 $schedule = load_user_meta($user['email'], 'schedule');
 $message = '';
@@ -31,6 +32,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     save_user_meta($user['email'], 'todo', $todo);
+
+    // 処方箋枚数を月次集計に同期
+    $monthKey = substr($date, 0, 7);
+    $rxEntries = $rxCounts[$monthKey]['entries'] ?? [];
+    $rxEntries = array_values(array_filter($rxEntries, fn($row) => ($row['date'] ?? '') !== $date));
+    $rxVal = (int)($entry['rx'] ?? 0);
+    $rxEntries[] = ['date' => $date, 'count' => $rxVal];
+    usort($rxEntries, fn($a, $b) => strcmp($a['date'], $b['date']));
+    $rxCounts[$monthKey] = [
+        'entries' => $rxEntries,
+        'total' => array_sum(array_column($rxEntries, 'count'))
+    ];
+    save_user_meta($user['email'], 'rx', $rxCounts);
+
     $message = '自動保存しました';
 }
 $entry = $checklists[$date] ?? ['items'=>[],'checks'=>[],'waste'=>'','training'=>'','notes'=>'','rx'=>'','participation'=>false];
@@ -81,14 +96,14 @@ function changeDate(sel){
         <div class="field-group">
             <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>チェック項目（ランダム3件）</span>
-                <small class="muted">アカウント設定で30件まで登録できます</small>
+                <small class="muted">左寄せで並べ、脳が迷わず「はい」を選べる配置です</small>
             </div>
-            <div class="checks-grid">
+            <div class="checks-list">
                 <?php foreach ($dailyChecks as $item): ?>
-                    <label class="inline"><input type="checkbox" name="checks[]" value="<?= htmlspecialchars($item) ?>" <?= in_array($item, $entry['checks'] ?? []) ? 'checked' : '' ?>><?= htmlspecialchars($item) ?></label>
+                    <label class="inline pill"><input type="checkbox" name="checks[]" value="<?= htmlspecialchars($item) ?>" <?= in_array($item, $entry['checks'] ?? []) ? 'checked' : '' ?>><?= htmlspecialchars($item) ?></label>
                 <?php endforeach; ?>
             </div>
-            <label>自由記入<textarea name="items[text]" rows="3" placeholder="チェックに補足を残すときに使えます。">
+            <label>自由記入<textarea name="items[text]" rows="3" placeholder="チェックに補足を残すときに使えます。集中が切れない短文が推奨です。 ">
 <?= htmlspecialchars($entry['items']['text'] ?? '') ?></textarea></label>
         </div>
         <label>医薬品廃棄<textarea name="waste" rows="2"><?= htmlspecialchars($entry['waste']) ?></textarea></label>

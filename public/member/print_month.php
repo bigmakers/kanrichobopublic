@@ -7,12 +7,12 @@ $month = sanitize_text($_GET['month'] ?? date('Y-m'));
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>印刷ビュー</title><link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>"></head>
+<head><meta charset="UTF-8"><title>薬局管理帳簿</title><link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>"></head>
 <body class="print">
 <form method="get" style="margin-bottom:12px;">
     <label>月を選択 <input type="month" name="month" value="<?= htmlspecialchars($month) ?>" onchange="this.form.submit()"></label>
 </form>
-<h2><?= htmlspecialchars($month) ?>の記録</h2>
+<h2>薬局管理帳簿 <?= htmlspecialchars($month) ?>の記録</h2>
 <table class="table" style="font-size:12px;">
     <tr><th>日付</th><th>チェック項目</th><th>廃棄</th><th>研修</th><th>備考</th><th>処方箋</th></tr>
     <?php foreach ($checklists as $date=>$entry): if (strpos($date,$month)===0): ?>
