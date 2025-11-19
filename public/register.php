@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
 if (!empty($_SESSION['user'])) {
-    header('Location: /index.php');
+    header('Location: index.php');
     exit;
 }
 $message = '';
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
         save_user($user);
         login($user);
-        header('Location: /index.php');
+        header('Location: index.php');
         exit;
     }
 }
@@ -47,6 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label>パスワード<input type="password" name="password" required></label>
     <button type="submit">登録</button>
 </form>
-<p><a href="/login.php">ログインに戻る</a></p>
+<p><a href="login.php">ログインに戻る</a></p>
 </body>
 </html>

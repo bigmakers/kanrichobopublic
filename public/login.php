@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
 if (!empty($_SESSION['user'])) {
-    header('Location: /index.php');
+    header('Location: index.php');
     exit;
 }
 $message = '';
@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = auth_user_by_email($email);
     if ($user && password_verify($password, $user['password'])) {
         login($user);
-        header('Location: /index.php');
+        header('Location: index.php');
         exit;
     }
     $message = '認証に失敗しました';
@@ -38,6 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label>パスワード<input type="password" name="password" required></label>
     <button type="submit">ログイン</button>
 </form>
-<p><a href="/register.php">新規登録はこちら</a></p>
+<p><a href="register.php">新規登録はこちら</a></p>
 </body>
 </html>
