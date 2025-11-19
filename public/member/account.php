@@ -6,6 +6,13 @@ csrf_check();
 $account = load_user_meta($user['email'], 'account');
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? 'save';
+    if ($action === 'delete_account') {
+        delete_user_records($user['email']);
+        logout();
+        header('Location: /login.php?msg=' . urlencode('退会処理が完了しました。ご利用ありがとうございました。'));
+        exit;
+    }
     $fields = ['permit_expiry','insurance_code','pmda'];
     foreach ($fields as $f) {
         $account[$f] = sanitize_text($_POST[$f] ?? '');
@@ -25,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php if ($message): ?><div class="alert"><?= htmlspecialchars($message) ?></div><?php endif; ?>
 <form method="post" class="card">
     <?= csrf_field(); ?>
+    <input type="hidden" name="action" value="save">
     <label>許可期限<input type="date" name="permit_expiry" value="<?= htmlspecialchars($account['permit_expiry'] ?? '') ?>"></label>
     <label>施設基準（カンマ区切り）<input type="text" name="facilities" value="<?= htmlspecialchars(implode(',', $account['facilities'] ?? [])) ?>"></label>
     <label>公費枠（カンマ区切り）<input type="text" name="public_frames" value="<?= htmlspecialchars(implode(',', $account['public_frames'] ?? [])) ?>"></label>
@@ -32,4 +40,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label>PMDAメディナビ情報<input type="text" name="pmda" value="<?= htmlspecialchars($account['pmda'] ?? '') ?>"></label>
     <button type="submit">保存</button>
 </form>
+
+<div class="card danger">
+    <h3>退会</h3>
+    <p>退会すると個人の記録は削除されます。必要に応じて事前に<a href="/member/backup.php">バックアップ</a>を取得してください。</p>
+    <form method="post" onsubmit="return confirm('バックアップは取得しましたか？退会するとデータが削除されます。よろしいですか？');">
+        <?= csrf_field(); ?>
+        <input type="hidden" name="action" value="delete_account">
+        <button type="submit">退会する</button>
+    </form>
+</div>
 </body></html>

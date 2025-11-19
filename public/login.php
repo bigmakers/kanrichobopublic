@@ -5,6 +5,7 @@ if (!empty($_SESSION['user'])) {
     exit;
 }
 $message = '';
+$info = sanitize_text($_GET['msg'] ?? '');
 csrf_check();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = sanitize_text($_POST['email'] ?? '');
@@ -28,6 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="mono">
 <h1>薬局管理帳簿ウェブシステム ログイン</h1>
 <?php if ($message): ?><div class="alert"><?= htmlspecialchars($message) ?></div><?php endif; ?>
+<?php if ($info && !$message): ?><div class="alert">
+    <?= htmlspecialchars($info) ?>
+</div><?php endif; ?>
 <form method="post" class="card">
     <?= csrf_field(); ?>
     <label>メール<input type="email" name="email" required></label>

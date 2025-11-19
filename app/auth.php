@@ -40,4 +40,13 @@ function logout() {
     $_SESSION = [];
     session_destroy();
 }
+
+function delete_user($email) {
+    $email = strtolower(trim($email));
+    $users = users_all();
+    $filtered = array_values(array_filter($users, function ($u) use ($email) {
+        return ($u['email'] ?? '') !== $email;
+    }));
+    json_write_atomic('users.json', $filtered);
+}
 ?>
