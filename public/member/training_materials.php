@@ -205,6 +205,20 @@ foreach ($all as $material) {
         $titleIndex[$material['id']] = $material['title'] ?? $material['id'];
     }
 }
+$commentCache = [];
+$recentComments = [];
+foreach ($list as $material) {
+    $comments = $normalizeComments($material['id'], read_json('comments/' . $material['id'] . '.json', []));
+    $commentCache[$material['id']] = $comments;
+    foreach ($comments as $comment) {
+        $recentComments[] = [
+            'material' => $material,
+            'comment' => $comment,
+        ];
+    }
+}
+usort($recentComments, fn($a,$b) => strcmp($b['comment']['at'] ?? '', $a['comment']['at'] ?? ''));
+$recentComments = array_slice($recentComments, 0, 5);
 ?>
 <!doctype html>
 <html lang="ja">
@@ -247,8 +261,8 @@ foreach ($all as $material) {
             </form>
             <p class="notice">閲覧して内容を理解 → すぐ隣の受講ボタンで記録、というワンステップ導線にしています。</p>
         </div>
-        <?php $threadNo = 1; foreach ($list as $m): list($ownerName, $ownerPharmacy) = $ownerInfo($m['owner']); $isOwner = $m['owner'] === $user['email']; $commentList = $normalizeComments($m['id'], read_json('comments/' . $m['id'] . '.json', [])); ?>
-        <div class="bbs-thread">
+        <?php $threadNo = 1; foreach ($list as $m): list($ownerName, $ownerPharmacy) = $ownerInfo($m['owner']); $isOwner = $m['owner'] === $user['email']; $commentList = $commentCache[$m['id']] ?? []; ?>
+        <div class="bbs-thread" id="thread-<?= htmlspecialchars($m['id']) ?>">
             <div class="bbs-head">
                 <div class="bbs-title">【<?= htmlspecialchars($ownerPharmacy ?: '無所属') ?>】<?= htmlspecialchars($m['title']) ?></div>
                 <div class="bbs-meta">1 ：<?= htmlspecialchars($ownerName) ?>＠<?= htmlspecialchars($ownerPharmacy ?: '薬局') ?> 投稿日：<?= htmlspecialchars(substr($m['created'] ?? '',0,16)) ?> ID:<?= htmlspecialchars(substr($m['id'], -6)) ?> <?= $m['public'] ? '◆公開中' : '◆非公開' ?></div>
@@ -317,7 +331,7 @@ foreach ($all as $material) {
             </form>
             <ul class="bbs-posts">
                 <?php $i = 2; foreach ($commentList as $c): ?>
-                    <li class="bbs-post">
+                    <li class="bbs-post" id="comment-<?= htmlspecialchars($c['id']) ?>">
                         <div class="bbs-meta"><?= $i ?> ：<?= htmlspecialchars($c['user']) ?> (<?= htmlspecialchars($c['ip']) ?>) 投稿日：<?= htmlspecialchars(substr($c['at'] ?? '',0,16)) ?> ID:<?= htmlspecialchars(substr($c['id'], -5)) ?> <?= $c['parent'] ? '>>'.$c['parent'] : '' ?></div>
                         <div class="bbs-body"><?= nl2br(htmlspecialchars($c['text'])) ?></div>
                         <form method="post" class="comment-reply-inline">
@@ -363,6 +377,20 @@ foreach ($all as $material) {
                 <button type="submit">保存</button>
             </form>
         </div>
+        <?php if (!empty($recentComments)): ?>
+        <div class="card">
+            <h3>新着コメント</h3>
+            <ul class="muted">
+                <?php foreach ($recentComments as $rc): $c = $rc['comment']; $mat = $rc['material']; ?>
+                    <li>
+                        <a href="#comment-<?= htmlspecialchars($c['id']) ?>">
+                            <?= htmlspecialchars(substr($c['at'] ?? '', 0, 16)) ?>：<?= htmlspecialchars($mat['title'] ?? '教材') ?>（<?= htmlspecialchars($c['user'] ?? '名無し') ?>）
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
         <div class="card">
             <h3>新着一覧</h3>
             <ul class="muted">
