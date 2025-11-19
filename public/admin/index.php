@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>管理ダッシュボード</title><link rel="stylesheet" href="/styles.css"></head>
+<head><meta charset="UTF-8"><title>管理ダッシュボード</title><link rel="stylesheet" href="../styles.css"></head>
 <body class="mono">
 <h1>管理ダッシュボード</h1>
 <?= admin_nav(); ?>

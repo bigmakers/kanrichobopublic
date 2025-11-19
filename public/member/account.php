@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>アカウント設定</title><link rel="stylesheet" href="/styles.css"></head>
+<head><meta charset="UTF-8"><title>アカウント設定</title><link rel="stylesheet" href="../styles.css"></head>
 <body class="mono">
 <h1>アカウント設定</h1>
 <?= member_nav(); ?>

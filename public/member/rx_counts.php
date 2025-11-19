@@ -23,7 +23,7 @@ $entries = $rx[$month]['entries'] ?? [['date'=>date('Y-m-d'),'count'=>0]];
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>処方箋枚数</title><link rel="stylesheet" href="/styles.css"></head>
+<head><meta charset="UTF-8"><title>処方箋枚数</title><link rel="stylesheet" href="../styles.css"></head>
 <body class="mono">
 <h1>処方箋枚数</h1>
 <?= member_nav(); ?>

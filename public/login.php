@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <title>ログイン - 薬局管理帳簿ウェブシステム</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body class="mono">
 <h1>薬局管理帳簿ウェブシステム ログイン</h1>

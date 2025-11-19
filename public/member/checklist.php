@@ -34,7 +34,7 @@ $entry = $checklists[$date] ?? ['items'=>[],'waste'=>'','training'=>'','notes'=>
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>薬局管理帳簿</title><link rel="stylesheet" href="/styles.css">
+<head><meta charset="UTF-8"><title>薬局管理帳簿</title><link rel="stylesheet" href="../styles.css">
 <script>
 function changeDate(sel){
     if(confirm('保存していない変更は失われます。切り替えますか？')){

@@ -13,7 +13,7 @@ $aff = read_json('affiliates.json', ['header' => '']);
 <head>
     <meta charset="UTF-8">
     <title>薬局管理帳簿ウェブシステム</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body class="mono">
 <?= $aff['header'] ?? '' ?>

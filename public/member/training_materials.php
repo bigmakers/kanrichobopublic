@@ -78,7 +78,7 @@ $history = load_user_meta($user['email'], 'training_history');
 ?>
 <!doctype html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>研修教材</title><link rel="stylesheet" href="/styles.css"></head>
+<head><meta charset="UTF-8"><title>研修教材</title><link rel="stylesheet" href="../styles.css"></head>
 <body class="mono">
 <h1>研修教材</h1>
 <?= member_nav(); ?>
