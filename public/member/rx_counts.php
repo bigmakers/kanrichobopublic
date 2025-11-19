@@ -10,11 +10,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $month = sanitize_text($_POST['month'] ?? $month);
     $dates = $_POST['date'] ?? [];
     $counts = $_POST['count'] ?? [];
+    $deletes = $_POST['delete'] ?? [];
     $entries = [];
     $total = 0;
     foreach ($dates as $i=>$d) {
+        if (!empty($deletes[$i])) { continue; }
+        $cleanDate = sanitize_text($d);
+        if ($cleanDate === '') { continue; }
         $c = (int)$counts[$i];
-        $entries[] = ['date'=>sanitize_text($d),'count'=>$c];
+        $entries[] = ['date'=>$cleanDate,'count'=>$c];
         $total += $c;
     }
     $rx[$month] = ['entries'=>$entries,'total'=>$total];
@@ -50,11 +54,12 @@ $total = $rx[$month]['total'] ?? array_sum(array_column($entries, 'count'));
         </div>
     </div>
     <table class="table">
-        <tr><th>日付</th><th>枚数</th></tr>
+        <tr><th>日付</th><th>枚数</th><th>削除</th></tr>
         <?php foreach ($entries as $i=>$e): ?>
         <tr>
             <td><input type="date" name="date[]" value="<?= htmlspecialchars($e['date']) ?>"></td>
             <td><input type="number" name="count[]" value="<?= htmlspecialchars($e['count']) ?>"></td>
+            <td class="muted" style="text-align:center;"><label class="inline"><input type="checkbox" name="delete[<?= $i ?>]" value="1">削除</label></td>
         </tr>
         <?php endforeach; ?>
     </table>
@@ -67,7 +72,7 @@ $total = $rx[$month]['total'] ?? array_sum(array_column($entries, 'count'));
 function addRow(){
     const table=document.querySelector('table');
     const row=document.createElement('tr');
-    row.innerHTML='<td><input type="date" name="date[]" value="<?= htmlspecialchars($month) ?>-01"></td><td><input type="number" name="count[]" value="0"></td>';
+    row.innerHTML='<td><input type="date" name="date[]" value="<?= htmlspecialchars($month) ?>-01"></td><td><input type="number" name="count[]" value="0"></td><td class="muted" style="text-align:center;">&mdash;</td>';
     table.appendChild(row);
 }
 </script>

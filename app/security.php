@@ -34,9 +34,27 @@ function enforce_login() {
 }
 
 function require_admin() {
-    if (empty($_SESSION['user']) || !($_SESSION['user']['is_admin'] ?? false)) {
+    if (empty($_SESSION['user'])) {
+        header('Location: ' . url_for('login.php?msg=' . rawurlencode('管理者としてログインしてください')));
+        exit;
+    }
+    $fresh = auth_user_by_email($_SESSION['user']['email'] ?? '');
+    if ($fresh) {
+        $_SESSION['user'] = $fresh;
+    }
+    $users = users_all();
+    $hasAdmin = false;
+    foreach ($users as $u) {
+        if ($u['is_admin'] ?? false) { $hasAdmin = true; break; }
+    }
+    if (!$hasAdmin && !empty($_SESSION['user'])) {
+        $_SESSION['user']['is_admin'] = true;
+        save_user($_SESSION['user']);
+        return;
+    }
+    if (!($_SESSION['user']['is_admin'] ?? false)) {
         http_response_code(403);
-        exit('Forbidden');
+        exit('管理者のみアクセスできます。ホームに戻ってください。');
     }
 }
 

@@ -134,6 +134,7 @@ function changeDate(sel){
 </form>
 <div class="card" style="margin-top:16px;">
     <h3><?= htmlspecialchars($monthPrefix) ?>のログ</h3>
+    <p class="muted" style="margin:4px 0;">降順の過去ログ編集は<a href="<?= htmlspecialchars(url_for('member/history.php')) ?>">こちら</a>から。</p>
     <table class="table">
         <tr><th>日付</th><th>チェック</th><th>研修</th><th>備考</th><th>処方箋</th></tr>
         <?php foreach ($monthLog as $d=>$e): ?>
