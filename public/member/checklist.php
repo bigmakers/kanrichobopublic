@@ -4,25 +4,19 @@ enforce_login();
 $user = $_SESSION['user'];
 csrf_check();
 
+// 日付処理
 $date = sanitize_text($_GET['date'] ?? date('Y-m-d'));
 $prevDate = date('Y-m-d', strtotime($date . ' -1 day'));
 $nextDate = date('Y-m-d', strtotime($date . ' +1 day'));
 
 $checklists = load_user_meta($user['email'], 'checklists');
 $todo = load_user_meta($user['email'], 'todo');
-if (!is_array($todo)) {
-    $todo = [];
-}
+if (!is_array($todo)) { $todo = []; }
 
+// TODO正規化ロジック
 $normalizeTodo = function(array $todos): array {
     $packed = [];
     foreach ($todos as $row) {
-        if (is_string($row)) {
-            $row = ['text' => $row, 'done' => false];
-        }
-        if (!is_array($row)) {
-            continue;
-        }
         $text = trim($row['text'] ?? '');
         if ($text === '') { continue; }
         $packed[] = ['text' => $text, 'done' => !empty($row['done'])];
@@ -40,29 +34,48 @@ $account = load_user_meta($user['email'], 'account');
 $schedule = load_user_meta($user['email'], 'schedule');
 $message = '';
 
+// POST処理
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $date = sanitize_text($_POST['date'] ?? $date);
 
+    // TODO非同期保存（備考も一緒に保存できるように改良）
     if (($_POST['action'] ?? '') === 'save_todo') {
-        for ($i = 0; $i < 10; $i++) {
+        // 1. TODOを保存
+        for ($i=0;$i<10;$i++) {
             $todo[$i]['text'] = sanitize_text($_POST['todo'][$i]['text'] ?? ($todo[$i]['text'] ?? ''));
             $todo[$i]['done'] = !empty($_POST['todo'][$i]['done']);
+            // 完了フラグは画面側で処理済みだが、念のため正規化でリセット
             if ($todo[$i]['done']) {
-                $todo[$i]['text'] = '';
+                $todo[$i]['text'] = ''; 
                 $todo[$i]['done'] = false;
             }
         }
         $todo = $normalizeTodo($todo);
         save_user_meta($user['email'], 'todo', $todo);
+
+        // 2. 備考(notes)が送られてきていれば、日報データとして保存
+        if (isset($_POST['notes'])) {
+            $currentEntry = $checklists[$date] ?? ['items'=>[],'checks'=>[],'waste'=>'','training'=>'','notes'=>'','rx'=>'','participation'=>false];
+            // 既存のデータを維持しつつ、notesだけ更新
+            $currentEntry['notes'] = sanitize_text($_POST['notes']);
+            // 配列キーが足りない場合の補完
+            $defaults = ['items'=>[],'checks'=>[],'waste'=>'','training'=>'','rx'=>'','participation'=>false];
+            $currentEntry = array_merge($defaults, $currentEntry);
+            
+            $checklists[$date] = $currentEntry;
+            save_user_meta($user['email'], 'checklists', $checklists);
+        }
+
         header('Content-Type: application/json');
-        echo json_encode(['status' => 'ok', 'todos' => $todo]);
+        echo json_encode(['status' => 'ok']);
         exit;
     }
 
+    // メインフォーム保存
     $selectedChecks = array_values(array_filter(array_map('sanitize_text', $_POST['checks'] ?? [])));
     $scheduleChecksPosted = array_values(array_filter(array_map('sanitize_text', $_POST['schedule_checks'] ?? [])));
     $existingEntry = $checklists[$date] ?? ['items'=>[],'checks'=>[],'waste'=>'','training'=>'','notes'=>'','rx'=>'','participation'=>false];
-
+    
     $entry = [
         'items' => sanitize_array($_POST['items'] ?? []),
         'checks' => array_values(array_unique(array_merge($selectedChecks, $scheduleChecksPosted))),
@@ -75,7 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $checklists[$date] = $entry;
     save_user_meta($user['email'], 'checklists', $checklists);
 
-    for ($i = 0; $i < 10; $i++) {
+    // TODOも同時に保存（整合性のため）
+    for ($i=0;$i<10;$i++) {
         $todo[$i]['text'] = sanitize_text($_POST['todo'][$i]['text'] ?? ($todo[$i]['text'] ?? ''));
         $todo[$i]['done'] = !empty($_POST['todo'][$i]['done']);
         if ($todo[$i]['done']) {
@@ -86,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $todo = $normalizeTodo($todo);
     save_user_meta($user['email'], 'todo', $todo);
 
+    // 処方箋枚数を月次集計に同期
     $monthKey = substr($date, 0, 7);
     $rxEntries = $rxCounts[$monthKey]['entries'] ?? [];
     $rxEntries = array_values(array_filter($rxEntries, fn($row) => ($row['date'] ?? '') !== $date));
@@ -101,6 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $message = '保存しました';
 }
 
+// 表示データ準備
 $entry = $checklists[$date] ?? ['items'=>[],'checks'=>[],'waste'=>'','training'=>'','notes'=>'','rx'=>'','participation'=>false];
 $checkItems = array_values(array_filter($account['check_items'] ?? []));
 $dailyChecks = [];
@@ -112,6 +128,7 @@ if (!empty($entry['checks'])) {
     }
     $dailyChecks = array_values(array_unique($dailyChecks));
 }
+// 未保存かつチェック項目設定がある場合、ランダムまたはデフォルトを表示
 if (empty($dailyChecks) && !empty($checkItems)) {
     $keys = array_rand($checkItems, min(3, count($checkItems)));
     if (!is_array($keys)) { $keys = [$keys]; }
@@ -120,6 +137,7 @@ if (empty($dailyChecks) && !empty($checkItems)) {
     }
 }
 
+// 月次ログ
 $monthPrefix = substr($date, 0, 7);
 $monthLog = [];
 foreach ($checklists as $d => $e) {
@@ -129,6 +147,7 @@ foreach ($checklists as $d => $e) {
 }
 ksort($monthLog);
 
+// スケジュール連携
 $todaySchedule = [];
 foreach (($schedule['events'] ?? []) as $ev) {
     if (($ev['date'] ?? '') === $date) {
@@ -152,149 +171,60 @@ foreach ($todaySchedule as $ev) {
 <title>薬局管理帳簿</title>
 <link rel="stylesheet" href="<?= htmlspecialchars(url_for('styles.css'), ENT_QUOTES) ?>">
 <style>
-    :root {
-        --primary: #2563eb;
-        --bg-body: #f3f4f6;
-        --bg-card: #ffffff;
-        --text-main: #1f2937;
-        --text-muted: #6b7280;
-        --border: #e5e7eb;
-        --radius: 8px;
-        --shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    body {
-        font-family: 'Helvetica Neue', Arial, sans-serif;
-        background-color: var(--bg-body);
-        color: var(--text-main);
-        margin: 0;
-        padding: 20px;
-        line-height: 1.5;
-    }
-    h1 { font-size: 1.5rem; margin-bottom: 1rem; color: var(--text-main); }
-    .container { max-width: 1200px; margin: 0 auto; }
-    .layout-grid {
-        display: grid;
-        grid-template-columns: 1fr 320px;
-        gap: 24px;
-        align-items: start;
-    }
-    @media (max-width: 900px) {
-        .layout-grid { grid-template-columns: 1fr; }
-    }
-    .card {
-        background: var(--bg-card);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        padding: 24px;
-        margin-bottom: 24px;
-        border: 1px solid var(--border);
-    }
-    .card-title { margin-top: 0; font-size: 1.1rem; border-bottom: 2px solid var(--bg-body); padding-bottom: 10px; margin-bottom: 15px; }
-    label { display: block; margin-bottom: 12px; font-weight: bold; font-size: 0.9rem; }
-    textarea, input[type="text"], input[type="number"], input[type="date"] {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-size: 16px;
-        box-sizing: border-box;
-        font-family: inherit;
-    }
-    textarea:focus, input:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    }
-    textarea { resize: vertical; min-height: 80px; }
-    .date-nav {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: #fff;
-        padding: 10px;
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        margin-bottom: 20px;
-        justify-content: space-between;
-    }
-    .date-nav a {
-        text-decoration: none;
-        color: var(--text-muted);
-        padding: 5px 12px;
-        border-radius: 4px;
-        background: #f9fafb;
-        border: 1px solid var(--border);
-        font-size: 0.9rem;
-    }
-    .date-nav a:hover { background: #e5e7eb; }
-    .date-nav input[type="date"] { width: auto; border: none; font-weight: bold; font-size: 1.1rem; text-align: center; }
+    /* checklist.php 固有の追加スタイル */
     .checks-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-    .check-option { position: relative; cursor: pointer; margin: 0; }
+    .check-option { position: relative; cursor: pointer; margin: 0 !important; }
     .check-option input { position: absolute; opacity: 0; width: 0; height: 0; }
     .check-option span {
-        display: block;
-        padding: 8px 16px;
-        background: #f3f4f6;
-        border-radius: 20px;
-        color: var(--text-main);
-        transition: all 0.2s;
-        border: 1px solid transparent;
+        display: block; padding: 8px 16px; background: #f3f4f6; border-radius: 20px;
+        color: var(--text-main); font-weight: normal; transition: all 0.2s; border: 1px solid transparent;
         user-select: none;
     }
     .check-option input:checked + span {
-        background: #eff6ff;
-        color: var(--primary);
-        border-color: var(--primary);
-        font-weight: bold;
+        background: #eff6ff; color: var(--primary); border-color: var(--primary); font-weight: bold;
     }
+    
     .todo-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 10px;
-        background: #fff;
-        padding: 2px;
+        display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+        background: #fff; padding: 2px;
     }
     .todo-row input[type="text"] {
-        border: none;
-        border-bottom: 1px solid var(--border);
-        border-radius: 0;
-        padding: 8px 0;
+        border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 8px 0;
     }
     .todo-row input[type="text"]:focus { border-bottom-color: var(--primary); box-shadow: none; }
     .todo-check { transform: scale(1.2); margin-right: 5px; cursor: pointer; }
+    
+    /* 完了したTODOのスタイル */
     .todo-row.is-done input[type="text"] { text-decoration: line-through; color: #9ca3af; }
+
+    /* テーブル */
     .table-responsive { overflow-x: auto; }
     .table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     .table th, .table td { border: 1px solid var(--border); padding: 10px; text-align: left; vertical-align: top; }
     .table th { background: #f9fafb; font-weight: 600; white-space: nowrap; }
-    .toast {
-        position: fixed; bottom: 20px; right: 20px;
-        background: #10b981; color: white;
-        padding: 10px 20px; border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        opacity: 0; transition: opacity 0.3s; pointer-events: none;
-        z-index: 100;
+
+    /* 日付ナビ */
+    .date-nav {
+        display: flex; align-items: center; gap: 10px; justify-content: space-between;
+        background: #fff; padding: 10px; border-radius: var(--radius);
+        box-shadow: var(--shadow); margin-bottom: 20px;
     }
-    .toast.show { opacity: 1; }
-    .btn-save {
-        background: var(--primary); color: white; border: none;
-        padding: 12px 24px; border-radius: 6px; font-size: 1rem; font-weight: bold;
-        cursor: pointer; width: 100%;
+    .date-nav a {
+        text-decoration: none; color: var(--text-muted); padding: 5px 12px;
+        border-radius: 4px; background: #f9fafb; border: 1px solid var(--border); font-size: 0.9rem;
     }
-    .btn-save:hover { opacity: 0.9; }
+    .date-nav a:hover { background: #e5e7eb; }
+    .date-nav input[type="date"] { width: auto; border: none; font-weight: bold; font-size: 1.1rem; text-align: center; }
 </style>
 <script>
-function confirmNav(url){
-    location.href = url;
-}
+function confirmNav(url){ location.href = url; }
 </script>
 </head>
 <body>
+
 <div class="container">
     <h1>薬局管理帳簿</h1>
     <?= member_nav(); ?>
-    <p style="color:#6b7280;font-size:0.9rem;">※各県地方ルールによる記載内容は備考に記録してください</p>
 
     <div id="toast" class="toast"></div>
 
@@ -319,6 +249,7 @@ function confirmNav(url){
         <div class="col-main">
             <div class="card">
                 <div class="card-title">本日のチェック</div>
+                
                 <div class="checks-list">
                     <?php foreach ($dailyChecks as $item): ?>
                         <label class="check-option">
@@ -327,6 +258,7 @@ function confirmNav(url){
                         </label>
                     <?php endforeach; ?>
                 </div>
+
                 <?php if ($scheduleCheckOptions): ?>
                     <div style="margin-top:16px; font-weight:bold; font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;">スケジュール参加</div>
                     <div class="checks-list">
@@ -338,6 +270,7 @@ function confirmNav(url){
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
+                
                 <label style="margin-top:16px;">チェック補足・自由記入
                     <textarea name="items[text]" placeholder="例：〇〇確認済み、△△は在庫切れのため未実施"><?= htmlspecialchars($entry['items']['text'] ?? '') ?></textarea>
                 </label>
@@ -362,10 +295,14 @@ function confirmNav(url){
                 </div>
                 <div style="margin-top:16px;">
                     <label>備考・引き継ぎ</label>
-                    <textarea name="notes" rows="3"><?= htmlspecialchars($entry['notes']) ?></textarea>
+                    <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">
+                        ※完了したTODOはここに自動追記されます
+                    </div>
+                    <textarea name="notes" id="notes-area" rows="5"><?= htmlspecialchars($entry['notes']) ?></textarea>
                 </div>
+
                 <div style="margin-top:24px;">
-                    <button type="submit" class="btn-save">日報を保存する</button>
+                    <button type="submit" class="btn-save w-100">日報を保存する</button>
                 </div>
             </div>
         </div>
@@ -373,7 +310,7 @@ function confirmNav(url){
         <div class="col-side">
             <div class="card" style="position:sticky; top:20px;">
                 <div class="card-title" style="display:flex; justify-content:space-between;">
-                    TODO <small style="font-weight:normal; color:var(--text-muted);">自動保存</small>
+                    TODO <small style="font-weight:normal; color:var(--text-muted);">完了で備考へ移動</small>
                 </div>
                 <div id="todo-list">
                     <?php for($i=0;$i<10;$i++): ?>
@@ -384,18 +321,12 @@ function confirmNav(url){
                         </div>
                     <?php endfor; ?>
                 </div>
-                <p style="font-size:0.8rem; color:var(--text-muted); margin-top:10px;">
-                    ※完了チェックした項目は、次回画面を開いた際にクリアされます。
-                </p>
             </div>
         </div>
     </form>
 
     <div class="card" style="margin-top:16px;">
         <h3><?= htmlspecialchars($monthPrefix) ?>のログ</h3>
-        <p style="color:var(--text-muted); font-size:0.9rem;">
-            過去ログ編集は<a href="<?= htmlspecialchars(url_for('member/history.php')) ?>">こちら</a>
-        </p>
         <div class="table-responsive">
             <table class="table">
                 <colgroup>
@@ -427,9 +358,7 @@ function confirmNav(url){
                             <?php endif; ?>
                             <div><?= nl2br(htmlspecialchars($e['notes'] ?? '')) ?></div>
                         </td>
-                        <td style="text-align:right; font-weight:bold;">
-                            <?= htmlspecialchars($e['rx'] ?? '-') ?>
-                        </td>
+                        <td style="text-align:right; font-weight:bold;"><?= htmlspecialchars($e['rx'] ?? '-') ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -445,91 +374,81 @@ function showToast(msg) {
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 3000);
 }
+
+// TODO自動保存 & 移行ロジック
 const todoContainer = document.getElementById('todo-list');
-if (todoContainer) {
-    const todoInputs = todoContainer.querySelectorAll('input[type="text"], input[type="checkbox"]');
-    let todoTimer = null;
-    let suppressTodoEvents = false;
+const todoInputs = todoContainer.querySelectorAll('input[type="text"], input[type="checkbox"]');
+const notesArea = document.getElementById('notes-area');
+let todoTimer = null;
 
-    function refreshTodoUI(todos) {
-        if (!Array.isArray(todos)) return;
-        const rows = todoContainer.querySelectorAll('.todo-row');
-        suppressTodoEvents = true;
-        rows.forEach((row, idx) => {
-            const data = todos[idx] ?? {text: '', done: false};
-            const textInput = row.querySelector('input[type="text"]');
-            const checkInput = row.querySelector('input[type="checkbox"]');
-            if (textInput) {
-                textInput.value = data.text ?? '';
-            }
-            if (checkInput) {
-                const isDone = Boolean(data.done);
-                checkInput.checked = isDone;
-                row.classList.toggle('is-done', isDone);
-            }
-        });
-        suppressTodoEvents = false;
-    }
+async function saveTodo() {
+    const form = document.querySelector('form.layout-grid');
+    if (!form) return;
+    
+    const fd = new FormData();
+    fd.append('csrf_token', form.querySelector('input[name="csrf_token"]').value);
+    fd.append('action', 'save_todo');
+    fd.append('date', form.querySelector('input[name="date"]').value);
+    
+    // 備考欄の内容も送信（Todo移行で変更されている可能性があるため）
+    fd.append('notes', notesArea.value);
 
-    async function saveTodo(showToastMessage = true) {
-        const form = document.querySelector('form.layout-grid');
-        if (!form) return;
-        const tokenField = form.querySelector('input[name="csrf_token"]');
-        if (!tokenField) return;
-
-        const fd = new FormData();
-        fd.append('csrf_token', tokenField.value);
-        fd.append('action', 'save_todo');
-        fd.append('date', form.querySelector('input[name="date"]').value);
-
-        todoContainer.querySelectorAll('.todo-row').forEach((row, idx) => {
-            const text = row.querySelector('input[type="text"]').value;
-            const done = row.querySelector('input[type="checkbox"]').checked;
-            fd.append(`todo[${idx}][text]`, text);
-            if (done) { fd.append(`todo[${idx}][done]`, '1'); }
-        });
-
-        try {
-            const res = await fetch(location.href, {method:'POST', body:fd, credentials:'same-origin'});
-            if (!res.ok) {
-                throw new Error('保存に失敗しました');
-            }
-            const payload = await res.json();
-            if (Array.isArray(payload.todos)) {
-                refreshTodoUI(payload.todos);
-            }
-            if (showToastMessage) {
-                showToast('TODOを保存しました');
-            }
-        } catch (e) {
-            console.error(e);
-            showToast('TODO保存に失敗しました。再読み込みしてください。');
-        }
-    }
-
-    function debounceSaveTodo() {
-        clearTimeout(todoTimer);
-        todoTimer = setTimeout(() => saveTodo(false), 800);
-    }
-
-    todoInputs.forEach(el => {
-        if (el.type === 'checkbox') {
-            el.addEventListener('change', function() {
-                if (suppressTodoEvents) return;
-                const row = this.closest('.todo-row');
-                if (row) {
-                    row.classList.toggle('is-done', this.checked);
-                }
-                saveTodo(false);
-            });
-        } else {
-            el.addEventListener('input', function() {
-                if (suppressTodoEvents) return;
-                debounceSaveTodo();
-            });
-        }
+    document.querySelectorAll('.col-side .todo-row').forEach((row, idx) => {
+        const text = row.querySelector('input[type="text"]').value;
+        // チェックボックスはリセットされている前提なので、doneは常にfalseで送ってよいが
+        // 念のため状態を取得して送る
+        const done = row.querySelector('input[type="checkbox"]').checked;
+        fd.append(`todo[${idx}][text]`, text);
+        if (done) { fd.append(`todo[${idx}][done]`, '1'); }
     });
+
+    try {
+        const res = await fetch(location.href, {method:'POST', body:fd});
+        if (res.ok) {
+            showToast('保存しました');
+        }
+    } catch (e) {
+        console.error(e);
+    }
 }
+
+function debounceSaveTodo() {
+    clearTimeout(todoTimer);
+    todoTimer = setTimeout(saveTodo, 1000);
+}
+
+todoInputs.forEach(el => {
+    if (el.type === 'checkbox') {
+        el.addEventListener('change', function() {
+            if (this.checked) {
+                // 完了時の移動ロジック
+                const row = this.closest('.todo-row');
+                const input = row.querySelector('input[type="text"]');
+                const text = input.value.trim();
+                
+                if (text) {
+                    // 1. 備考欄に追記
+                    const prefix = notesArea.value ? '\n' : '';
+                    notesArea.value += prefix + '【済】 ' + text;
+                    
+                    // 2. TODO欄をクリア
+                    input.value = '';
+                    
+                    // 3. 通知
+                    showToast('備考欄へ移動しました');
+                }
+                
+                // 4. チェックを即座に外す（UI上のリセット）
+                this.checked = false;
+                
+                // 5. 保存実行（備考と空になったTodoを保存）
+                saveTodo();
+            }
+        });
+    } else {
+        el.addEventListener('input', debounceSaveTodo);
+    }
+});
 </script>
 </body>
 </html>
