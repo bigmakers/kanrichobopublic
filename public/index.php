@@ -20,6 +20,35 @@ $todoItems = array_values(array_filter($todo ?? [], function ($row) {
     return trim($row['text'] ?? '') !== '';
 }));
 $aff = read_json('affiliates.json', ['header' => '']);
+$isAdmin = !empty($user['is_admin']);
+$adminSnapshot = [
+    'user_total' => 0,
+    'admin_total' => 0,
+    'material_total' => 0,
+    'public_material_total' => 0,
+    'check_entry_total' => 0,
+    'last_check_date' => '---',
+    'latest_materials' => []
+];
+if ($isAdmin) {
+    $allUsers = users_all();
+    $adminSnapshot['user_total'] = count($allUsers);
+    $adminSnapshot['admin_total'] = count(array_filter($allUsers, fn($u) => $u['is_admin'] ?? false));
+    $adminSnapshot['material_total'] = count($materials);
+    $adminSnapshot['public_material_total'] = count(array_filter($materials, fn($m) => $m['public'] ?? false));
+    $files = glob(data_path('user_*_checklists.json')) ?: [];
+    $lastCheck = '';
+    foreach ($files as $file) {
+        $json = json_decode(@file_get_contents($file), true);
+        if (!is_array($json)) { continue; }
+        $adminSnapshot['check_entry_total'] += count($json);
+        foreach ($json as $dateKey => $row) {
+            if ($dateKey > $lastCheck) { $lastCheck = $dateKey; }
+        }
+    }
+    $adminSnapshot['last_check_date'] = $lastCheck ?: '---';
+    $adminSnapshot['latest_materials'] = array_slice($materials, 0, 3);
+}
 ?>
 <!doctype html>
 <html lang="ja">
@@ -44,8 +73,43 @@ $aff = read_json('affiliates.json', ['header' => '']);
             <a class="btn" href="<?= url_for('member/checklist.php'); ?>">日次チェックをつける</a>
             <a class="btn secondary" href="<?= url_for('member/rx_counts.php'); ?>">今月の処方箋枚数を記録</a>
             <a class="btn secondary" href="<?= url_for('member/my_schedule.php'); ?>">予定を1件入れる</a>
+            <?php if ($isAdmin): ?>
+                <a class="btn secondary" href="<?= url_for('admin/index.php'); ?>">管理画面へ</a>
+            <?php endif; ?>
         </div>
     </div>
+
+    <?php if ($isAdmin): ?>
+        <div class="card highlight">
+            <div class="section-title">
+                <h2>管理モードダイジェスト</h2>
+                <span class="badge">管理者専用</span>
+            </div>
+            <p class="subtext">ログイン直後に「いまの全体像」と管理メニューの導線をまとめました。数字を確認してそのまま管理画面へ遷移できます。</p>
+            <div class="stat-list">
+                <div class="stat">ユーザー <?= htmlspecialchars($adminSnapshot['user_total']) ?></div>
+                <div class="stat">管理者 <?= htmlspecialchars($adminSnapshot['admin_total']) ?></div>
+                <div class="stat">教材 <?= htmlspecialchars($adminSnapshot['material_total']) ?></div>
+                <div class="stat">公開教材 <?= htmlspecialchars($adminSnapshot['public_material_total']) ?></div>
+                <div class="stat">チェックログ <?= htmlspecialchars($adminSnapshot['check_entry_total']) ?></div>
+                <div class="stat">最終記録日 <?= htmlspecialchars($adminSnapshot['last_check_date']) ?></div>
+            </div>
+            <?php if (!empty($adminSnapshot['latest_materials'])): ?>
+                <p class="muted" style="margin-top:12px;">直近の教材登録</p>
+                <ul>
+                    <?php foreach ($adminSnapshot['latest_materials'] as $mat): ?>
+                        <li><?= htmlspecialchars($mat['title'] ?? '教材') ?> <?= !empty($mat['owner']) ? ' / ' . htmlspecialchars($mat['owner']) : '' ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+            <div class="hero-actions">
+                <a class="btn" href="<?= url_for('admin/index.php'); ?>">管理ダッシュボードへ</a>
+                <a class="btn secondary" href="<?= url_for('admin/users_admin.php'); ?>">ユーザー管理</a>
+                <a class="btn secondary" href="<?= url_for('admin/training_admin.php'); ?>">研修教材管理</a>
+                <a class="btn secondary" href="<?= url_for('admin/records_admin.php'); ?>">記録管理</a>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <div class="grid">
         <div>
