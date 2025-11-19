@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($date !== '') {
         $checksRaw = sanitize_text($row['checks'] ?? '');
         $checks = array_filter(array_map('trim', preg_split('/[,\n]+/u', $checksRaw)));
+        $prev = $checklists[$date] ?? [];
         $checklists[$date] = [
             'items' => ['text' => sanitize_text($row['items'] ?? '')],
             'checks' => array_values($checks),
@@ -19,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'training' => sanitize_text($row['training'] ?? ''),
             'notes' => sanitize_text($row['notes'] ?? ''),
             'rx' => sanitize_text($row['rx'] ?? ''),
-            'participation' => !empty($row['participation'])
+            'participation' => $prev['participation'] ?? false
         ];
         save_user_meta($user['email'], 'checklists', $checklists);
         $message = $date . ' を保存しました';
@@ -52,7 +53,6 @@ uksort($checklists, fn($a, $b) => strcmp($b, $a));
                 <label>研修<textarea name="entry[training]" rows="2"><?= htmlspecialchars($e['training'] ?? '') ?></textarea></label>
                 <label>備考<textarea name="entry[notes]" rows="2"><?= htmlspecialchars($e['notes'] ?? '') ?></textarea></label>
                 <label>廃棄<textarea name="entry[waste]" rows="2"><?= htmlspecialchars($e['waste'] ?? '') ?></textarea></label>
-                <label class="inline" style="align-self:center;"><input type="checkbox" name="entry[participation]" value="1" <?= !empty($e['participation'])?'checked':''; ?>>MYスケジュール参加</label>
             </div>
             <div class="actions" style="justify-content:flex-end;"><button type="submit">この日の記録を保存</button></div>
         </form>

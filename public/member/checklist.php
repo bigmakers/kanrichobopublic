@@ -44,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $selectedChecks = array_values(array_filter(array_map('sanitize_text', $_POST['checks'] ?? [])));
     $scheduleChecksPosted = array_values(array_filter(array_map('sanitize_text', $_POST['schedule_checks'] ?? [])));
+    $existingEntry = $checklists[$date] ?? ['items'=>[],'checks'=>[],'waste'=>'','training'=>'','notes'=>'','rx'=>'','participation'=>false];
     $entry = [
         'items' => sanitize_array($_POST['items'] ?? []),
         'checks' => array_values(array_unique(array_merge($selectedChecks, $scheduleChecksPosted))),
@@ -51,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'training' => sanitize_text($_POST['training'] ?? ''),
         'notes' => sanitize_text($_POST['notes'] ?? ''),
         'rx' => sanitize_text($_POST['rx'] ?? ''),
-        'participation' => !empty($_POST['participation'])
+        'participation' => $existingEntry['participation'] ?? false
     ];
     $checklists[$date] = $entry;
     save_user_meta($user['email'], 'checklists', $checklists);
@@ -159,7 +160,6 @@ function changeDate(sel){
         <label>研修記録<textarea name="training" rows="2"><?= htmlspecialchars($entry['training']) ?></textarea></label>
         <label>備考<textarea name="notes" rows="3"><?= htmlspecialchars($entry['notes']) ?></textarea></label>
         <label>処方箋枚数<input type="number" name="rx" value="<?= htmlspecialchars($entry['rx']) ?>"></label>
-        <label><input type="checkbox" name="participation" value="1" <?= !empty($entry['participation'])?'checked':''; ?>>MYスケジュール参加</label>
         <?php if ($todaySchedule): ?>
             <div class="notice">本日のマイスケジュール</div>
             <ul class="muted">
