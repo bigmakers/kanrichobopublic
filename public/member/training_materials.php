@@ -393,7 +393,11 @@ $recentComments = array_slice($recentComments, 0, 5);
             <h3>新着一覧</h3>
             <ul class="muted">
                 <?php foreach ($list as $mRecent): list($ownerNameRecent, $ownerPharmacyRecent) = $ownerInfo($mRecent['owner']); ?>
-                    <li><?= htmlspecialchars(substr($mRecent['created'] ?? '', 0, 10)) ?>：<?= htmlspecialchars($mRecent['title']) ?>（<?= htmlspecialchars($ownerPharmacyRecent ?: '未設定') ?>）</li>
+                    <li>
+                        <a href="#thread-<?= htmlspecialchars($mRecent['id']) ?>">
+                            <?= htmlspecialchars(substr($mRecent['created'] ?? '', 0, 10)) ?>：<?= htmlspecialchars($mRecent['title']) ?>（<?= htmlspecialchars($ownerPharmacyRecent ?: '未設定') ?>）
+                        </a>
+                    </li>
                 <?php endforeach; ?>
             </ul>
         </div>
