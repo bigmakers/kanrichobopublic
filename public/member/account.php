@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete_account') {
         delete_user_records($user['email']);
         logout();
-        header('Location: /login.php?msg=' . urlencode('退会処理が完了しました。ご利用ありがとうございました。'));
+        header('Location: ' . url_for('login.php') . '?msg=' . urlencode('退会処理が完了しました。ご利用ありがとうございました。'));
         exit;
     }
     $fields = ['permit_expiry','insurance_code','pmda'];
@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div class="card danger">
     <h3>退会</h3>
-    <p>退会すると個人の記録は削除されます。必要に応じて事前に<a href="/member/backup.php">バックアップ</a>を取得してください。</p>
+    <p>退会すると個人の記録は削除されます。必要に応じて事前に<a href="<?= url_for('member/backup.php'); ?>">バックアップ</a>を取得してください。</p>
     <form method="post" onsubmit="return confirm('バックアップは取得しましたか？退会するとデータが削除されます。よろしいですか？');">
         <?= csrf_field(); ?>
         <input type="hidden" name="action" value="delete_account">

@@ -28,7 +28,7 @@ function security_status() {
 
 function enforce_login() {
     if (empty($_SESSION['user'])) {
-        header('Location: /login.php');
+        header('Location: ' . url_for('login.php'));
         exit;
     }
 }
@@ -42,5 +42,26 @@ function require_admin() {
 
 function header_no_sniff() {
     header('X-Content-Type-Options: nosniff');
+}
+
+function app_base_path() {
+    $script = $_SERVER['SCRIPT_NAME'] ?? '';
+    if ($script === '') {
+        return '';
+    }
+    $dir = str_replace('\\', '/', dirname($script));
+    $dir = rtrim($dir, '/');
+    // strip member/admin leaf so links resolve to the public root
+    $dir = preg_replace('#/(member|admin)$#', '', $dir);
+    if ($dir === '/') {
+        $dir = '';
+    }
+    return $dir;
+}
+
+function url_for(string $path) {
+    $base = app_base_path();
+    $prefix = ($base === '/' || $base === '') ? '' : $base;
+    return $prefix . '/' . ltrim($path, '/');
 }
 ?>

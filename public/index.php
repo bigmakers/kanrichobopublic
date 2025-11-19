@@ -32,11 +32,11 @@ $aff = read_json('affiliates.json', ['header' => '']);
 <div class="card">
     <h2>ショートカット</h2>
     <ul>
-        <li><a href="/member/checklist.php">日次チェックリスト</a></li>
-        <li><a href="/member/rx_counts.php">月次処方箋枚数</a></li>
-        <li><a href="/member/my_schedule.php">マイスケジュール編集</a></li>
-        <li><a href="/member/training_materials.php">研修教材</a></li>
-        <li><a href="/member/print_month.php">印刷ビュー</a></li>
+        <li><a href="<?= url_for('member/checklist.php'); ?>">日次チェックリスト</a></li>
+        <li><a href="<?= url_for('member/rx_counts.php'); ?>">月次処方箋枚数</a></li>
+        <li><a href="<?= url_for('member/my_schedule.php'); ?>">マイスケジュール編集</a></li>
+        <li><a href="<?= url_for('member/training_materials.php'); ?>">研修教材</a></li>
+        <li><a href="<?= url_for('member/print_month.php'); ?>">印刷ビュー</a></li>
     </ul>
 </div>
 <div class="card">

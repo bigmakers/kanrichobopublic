@@ -107,7 +107,7 @@ $history = load_user_meta($user['email'], 'training_history');
     <h3><?= htmlspecialchars($m['title']) ?></h3>
     <p><?= nl2br(htmlspecialchars($m['description'])) ?></p>
     <?php if ($m['url']): ?><p>URL: <a href="<?= htmlspecialchars($m['url']) ?>" target="_blank">リンク</a></p><?php endif; ?>
-    <?php if ($m['file']): ?><p><a href="/attachments.php?f=<?= urlencode($m['file']) ?>">添付をダウンロード</a></p><?php endif; ?>
+    <?php if ($m['file']): ?><p><a href="<?= url_for('attachments.php'); ?>?f=<?= urlencode($m['file']) ?>">添付をダウンロード</a></p><?php endif; ?>
     <form method="post">
         <?= csrf_field(); ?>
         <input type="hidden" name="action" value="complete">

@@ -8,7 +8,7 @@ $logged = !empty($_SESSION['user']);
 <body class="mono">
 <h1>使い方ガイド</h1>
 <?php if ($logged): ?>
-<p><a href="/index.php">メンバー機能へ戻る</a></p>
+<p><a href="<?= url_for('index.php'); ?>">メンバー機能へ戻る</a></p>
 <?php endif; ?>
 <div class="card">
     <h3>概要</h3>
