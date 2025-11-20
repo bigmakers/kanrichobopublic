@@ -1,0 +1,10 @@
+[
+    {
+        "email": "admin@example.com",
+        "password": "",
+        "name": "管理者",
+        "pharmacy": "サンプル薬局",
+        "meta": {},
+        "is_admin": true
+    }
+]
