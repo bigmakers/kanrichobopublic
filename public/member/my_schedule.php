@@ -7,17 +7,14 @@ $schedule = load_user_meta($user['email'], 'schedule');
 if (!is_array($schedule)) { $schedule = []; }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $dates = $_POST['events']['date'] ?? [];
-    $titles = $_POST['events']['title'] ?? [];
-    $details = $_POST['events']['detail'] ?? [];
-    $participate = $_POST['events']['participate'] ?? [];
+    $rows = $_POST['events'] ?? [];
 
     $events = [];
-    foreach ($dates as $i => $d) {
-        $dateVal = sanitize_text($d);
-        $titleVal = sanitize_text($titles[$i] ?? '');
-        $detailVal = sanitize_text($details[$i] ?? '');
-        $participateVal = !empty($participate[$i]);
+    foreach ($rows as $row) {
+        $dateVal = sanitize_text($row['date'] ?? '');
+        $titleVal = sanitize_text($row['title'] ?? '');
+        $detailVal = sanitize_text($row['detail'] ?? '');
+        $participateVal = !empty($row['participate']);
 
         if ($dateVal === '' && $titleVal === '' && $detailVal === '') {
             continue;
@@ -77,13 +74,14 @@ usort($upcoming, function($a, $b) {
                 <?php foreach ($events as $i=>$e): ?>
                     <div class="event-row">
                         <div class="row-grid">
-                            <label>日付<input type="date" name="events[date][<?= $i ?>]" value="<?= htmlspecialchars($e['date'] ?? '') ?>"></label>
-                            <label>タイトル<input type="text" name="events[title][<?= $i ?>]" placeholder="勉強会・巡回予定など" value="<?= htmlspecialchars($e['title'] ?? '') ?>"></label>
+                            <label>日付<input type="date" name="events[<?= $i ?>][date]" value="<?= htmlspecialchars($e['date'] ?? '') ?>"></label>
+                            <label>タイトル<input type="text" name="events[<?= $i ?>][title]" placeholder="勉強会・巡回予定など" value="<?= htmlspecialchars($e['title'] ?? '') ?>"></label>
                             <label class="inline" style="gap:8px;">
-                                <input type="checkbox" name="events[participate][<?= $i ?>]" value="1" <?= !empty($e['participate'])?'checked':''; ?>>参加予定
+                                <input type="checkbox" name="events[<?= $i ?>][participate]" value="1" <?= !empty($e['participate'])?'checked':''; ?>>参加予定
                             </label>
                         </div>
-                        <label>内容<textarea name="events[detail][<?= $i ?>]" rows="2" placeholder="場所・共有事項や持ち物メモなどを残せます。"><?= htmlspecialchars($e['detail'] ?? '') ?></textarea></label>
+                        <label>内容<textarea name="events[<?= $i ?>][detail]" rows="2" placeholder="場所・共有事項や持ち物メモなどを残せます。">
+<?= htmlspecialchars($e['detail'] ?? '') ?></textarea></label>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -119,13 +117,13 @@ const template = () => {
     wrap.className = 'event-row';
     wrap.innerHTML = `
         <div class="row-grid">
-            <label>日付<input type="date" name="events[date][${idx}]"></label>
-            <label>タイトル<input type="text" name="events[title][${idx}]" placeholder="勉強会・巡回予定など"></label>
+            <label>日付<input type="date" name="events[${idx}][date]"></label>
+            <label>タイトル<input type="text" name="events[${idx}][title]" placeholder="勉強会・巡回予定など"></label>
             <label class="inline" style="gap:8px;">
-                <input type="checkbox" name="events[participate][${idx}]" value="1">参加予定
+                <input type="checkbox" name="events[${idx}][participate]" value="1">参加予定
             </label>
         </div>
-        <label>内容<textarea name="events[detail][${idx}]" rows="2" placeholder="場所・共有事項や持ち物メモなどを残せます。"></textarea></label>
+        <label>内容<textarea name="events[${idx}][detail]" rows="2" placeholder="場所・共有事項や持ち物メモなどを残せます。"></textarea></label>
     `;
     return wrap;
 };
