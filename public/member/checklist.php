@@ -265,17 +265,20 @@ foreach ($todaySchedule as $ev) {
     }
 
     .todo-row {
-        display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
-        background: #fff; padding: 2px;
+        display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+        background: #fff; padding: 6px 10px; border: 1px solid transparent; border-radius: 4px; transition: all 0.2s;
     }
+    .todo-row:focus-within { border-color: var(--primary); background: #f9fafb; }
     .todo-row input[type="text"] {
-        border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 8px 0;
+        flex: 1; border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 8px 4px;
+        font-size: 1rem; background: transparent; box-shadow: none; min-width: 0;
     }
-    .todo-row input[type="text"]:focus { border-bottom-color: var(--primary); box-shadow: none; }
-    .todo-check { transform: scale(1.2); margin-right: 5px; cursor: pointer; }
-
+    .todo-row input[type="text"]:focus { border-bottom-color: var(--primary); box-shadow: none; outline: none; }
+    .todo-check { transform: scale(1.3); margin: 0; cursor: pointer; }
+    
     /* 完了したTODOのスタイル */
-    .todo-row.is-done input[type="text"] { text-decoration: line-through; color: #9ca3af; }
+    .todo-row.is-done input[type="text"] { text-decoration: line-through; color: #9ca3af; background: transparent; }
+    .todo-row.is-done { background: #f3f4f6; }
 
     /* テーブル */
     .table-responsive { overflow-x: auto; }
@@ -503,19 +506,23 @@ if (todoContainer && notesArea) {
     todoInputs.forEach(el => {
         if (el.type === 'checkbox') {
             el.addEventListener('change', function() {
+                const row = this.closest('.todo-row');
+                if (row) {
+                    row.classList.toggle('is-done', this.checked);
+                }
                 if (this.checked) {
-                    const row = this.closest('.todo-row');
-                    const input = row.querySelector('input[type="text"]');
-                    const text = input.value.trim();
+                    const input = row ? row.querySelector('input[type="text"]') : null;
+                    const text = input ? input.value.trim() : '';
 
                     if (text) {
                         const prefix = notesArea.value ? '\n' : '';
                         notesArea.value += prefix + '【済】 ' + text;
-                        input.value = '';
+                        if (input) { input.value = ''; }
                         showToast('備考欄へ移動しました');
                     }
 
                     this.checked = false;
+                    if (row) { row.classList.remove('is-done'); }
                     saveTodo();
                 }
             });

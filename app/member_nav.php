@@ -13,7 +13,7 @@ function member_nav() {
             <a href="<?= htmlspecialchars(url_for('member/my_schedule.php'), ENT_QUOTES, 'UTF-8') ?>" class="nav-item <?= $isActive('my_schedule.php') ?>">
                 スケジュール
             </a>
-            <a href="<?= htmlspecialchars(url_for('member/training_materials.php'), ENT_QUOTES, 'UTF-8') ?>" class="nav-item <?= $isActive('training_materials.php') ?>">
+            <a href="<?= htmlspecialchars(url_for('member/training.php'), ENT_QUOTES, 'UTF-8') ?>" class="nav-item <?= $isActive('training.php') ?>">
                 研修教材
             </a>
             <a href="<?= htmlspecialchars(url_for('member/history.php'), ENT_QUOTES, 'UTF-8') ?>" class="nav-item <?= $isActive('history.php') ?>">

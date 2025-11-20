@@ -123,7 +123,7 @@ if ($isAdmin) {
                     <li><a href="<?= url_for('member/checklist.php'); ?>">日次チェックリスト</a> — 今日の漏れを防ぐ</li>
                     <li><a href="<?= url_for('member/rx_counts.php'); ?>">月次処方箋枚数</a> — 5分で数字を残す</li>
                     <li><a href="<?= url_for('member/my_schedule.php'); ?>">マイスケジュール編集</a> — 直近を1件入力</li>
-                    <li><a href="<?= url_for('member/training_materials.php'); ?>">研修教材</a> — 受講済みを記録</li>
+                    <li><a href="<?= url_for('member/training.php'); ?>">研修教材</a> — 受講済みを記録</li>
                     <li><a target="_blank" rel="noopener" href="<?= url_for('member/print_month.php'); ?>">印刷ビュー</a> — A4で確認</li>
                 </ul>
             </div>
@@ -187,7 +187,7 @@ if ($isAdmin) {
                 <?php if ($latestMaterial): ?>
                     <p class="helper" style="margin-bottom:8px;">最新: <strong><?= htmlspecialchars($latestMaterial['title']) ?></strong></p>
                 <?php else: ?>
-                    <p class="muted">まだ教材がありません。<a href="<?= url_for('member/training_materials.php'); ?>">教材を登録</a>してみましょう。</p>
+                    <p class="muted">まだ教材がありません。<a href="<?= url_for('member/training.php'); ?>">教材を登録</a>してみましょう。</p>
                 <?php endif; ?>
                 <?php if ($randomMaterials): ?>
                     <ul>
@@ -197,7 +197,7 @@ if ($isAdmin) {
                     </ul>
                     <p class="muted" style="margin-top:6px;">未受講のものをランダムに5件ピックアップしています。</p>
                 <?php endif; ?>
-                <div class="actions"><a class="btn secondary" href="<?= url_for('member/training_materials.php'); ?>">教材へ進む</a></div>
+                <div class="actions"><a class="btn secondary" href="<?= url_for('member/training.php'); ?>">教材へ進む</a></div>
             </div>
 
             <div class="card">
