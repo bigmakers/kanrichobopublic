@@ -6,12 +6,15 @@ function member_nav() {
     <nav class="app-navbar">
         <div class="nav-start">
             <a href="<?= htmlspecialchars(url_for('index.php'), ENT_QUOTES, 'UTF-8') ?>" class="nav-brand">🏠</a>
-            
+
             <a href="<?= htmlspecialchars(url_for('member/checklist.php'), ENT_QUOTES, 'UTF-8') ?>" class="nav-item <?= $isActive('checklist.php') ?>">
                 日報・帳簿
             </a>
             <a href="<?= htmlspecialchars(url_for('member/my_schedule.php'), ENT_QUOTES, 'UTF-8') ?>" class="nav-item <?= $isActive('my_schedule.php') ?>">
                 スケジュール
+            </a>
+            <a href="<?= htmlspecialchars(url_for('member/training_materials.php'), ENT_QUOTES, 'UTF-8') ?>" class="nav-item <?= $isActive('training_materials.php') ?>">
+                研修教材
             </a>
             <a href="<?= htmlspecialchars(url_for('member/history.php'), ENT_QUOTES, 'UTF-8') ?>" class="nav-item <?= $isActive('history.php') ?>">
                 過去ログ
@@ -24,7 +27,6 @@ function member_nav() {
                 <div class="dropdown-menu">
                     <a href="<?= htmlspecialchars(url_for('member/rx_counts.php'), ENT_QUOTES, 'UTF-8') ?>">処方箋集計</a>
                     <a href="<?= htmlspecialchars(url_for('member/pharmacists.php'), ENT_QUOTES, 'UTF-8') ?>">薬剤師名簿</a>
-                    <a href="<?= htmlspecialchars(url_for('member/training_materials.php'), ENT_QUOTES, 'UTF-8') ?>">研修教材</a>
                     <div class="divider"></div>
                     <a href="<?= htmlspecialchars(url_for('member/print_month.php'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">印刷</a>
                     <a href="<?= htmlspecialchars(url_for('member/backup.php'), ENT_QUOTES, 'UTF-8') ?>">バックアップ</a>
