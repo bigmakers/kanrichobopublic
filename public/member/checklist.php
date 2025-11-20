@@ -151,7 +151,7 @@ foreach ($checklists as $d => $e) {
 }
 ksort($monthLog);
 
-// スケジュール連携
+// スケジュール連携（すべての予定を表示）
 $todaySchedule = [];
 foreach (($schedule['events'] ?? []) as $ev) {
     if (($ev['date'] ?? '') === $date) {
@@ -160,7 +160,7 @@ foreach (($schedule['events'] ?? []) as $ev) {
 }
 $scheduleCheckOptions = [];
 foreach ($todaySchedule as $ev) {
-    $label = '参加: ' . trim($ev['title'] ?? '予定');
+    $label = '予定: ' . trim($ev['title'] ?? '');
     if (!empty($ev['detail'])) {
         $label .= ' / ' . $ev['detail'];
     }
